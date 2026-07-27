@@ -1,0 +1,225 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║  EBENEZER WORSHIP CENTRE — TAIFA CMS                               ║
+║  WEB HOSTING GUIDE — HOST ON THE CLOUD (FREE)                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+FILES IN THIS PACKAGE
+─────────────────────
+  server.py              ← Python backend server (zero dependencies)
+  EbenezerWC_CMS.html    ← Full church management app
+  register.html          ← Public member self-registration form
+  Procfile               ← Railway/Heroku start command
+  railway.json           ← Railway deployment config
+  render.yaml            ← Render.com deployment config
+  requirements.txt       ← Empty (no pip packages needed)
+  runtime.txt            ← Python 3.11
+  .gitignore             ← Excludes database from git
+  START_SERVER_WINDOWS.bat  ← Local Windows startup
+  START_SERVER.sh        ← Local Mac/Linux startup
+
+
+══════════════════════════════════════════════════════════════════════
+OPTION 1 — RAILWAY.APP  (RECOMMENDED · FREE · 5 MINUTES)
+══════════════════════════════════════════════════════════════════════
+
+Railway gives you a permanent link like:
+  https://ewc-cms-taifa.up.railway.app
+
+STEP 1 — Create free accounts (one time only)
+  a. github.com  → Sign Up (free)
+  b. railway.app → Sign Up with GitHub (free)
+
+STEP 2 — Upload files to GitHub
+  a. github.com → click green "New" button → create repo
+  b. Name: ewc-cms-taifa  |  Set to: Private
+  c. Click "uploading an existing file"
+  d. Drag ALL these files into the upload area:
+       server.py, EbenezerWC_CMS.html, register.html,
+       Procfile, railway.json, requirements.txt, runtime.txt
+  e. Click "Commit changes"
+
+STEP 3 — Deploy on Railway
+  a. railway.app → click "New Project"
+  b. Choose "Deploy from GitHub repo"
+  c. Select "ewc-cms-taifa" repository
+  d. Railway auto-detects Python and deploys! (~2 minutes)
+  e. Click your service → "Settings" → "Generate Domain"
+  f. Your public link appears! ✅
+
+STEP 4 — Add persistent storage (CRITICAL — saves your database)
+  a. In Railway project → click "+ New" → "Volume"
+  b. Attach to your service
+  c. Mount path: /data
+  d. Size: 1GB (free)
+  e. Redeploy → data now survives restarts!
+
+STEP 5 — Set security key (recommended)
+  a. Your service → "Variables" tab
+  b. Add: EWC_SECRET = (type any long password, e.g. EWC2024TaifaCOP!)
+  c. Railway restarts automatically
+
+STEP 6 — Open your link and login:
+  Username: admin
+  Password: admin123
+  ⚠️  Change this password immediately!
+
+COST: FREE (500 hours/month — more than enough for 24/7 use)
+
+
+══════════════════════════════════════════════════════════════════════
+OPTION 2 — RENDER.COM  (FREE WITH SLEEP · EASY)
+══════════════════════════════════════════════════════════════════════
+
+STEP 1 — Upload to GitHub (same as Railway Step 2 above)
+
+STEP 2 — render.com → Sign Up → "New" → "Web Service"
+
+STEP 3 — Connect your GitHub repository
+
+STEP 4 — Render reads render.yaml automatically
+  • Build Command: (leave blank)
+  • Start Command: python server.py
+  • Click "Create Web Service"
+
+STEP 5 — Add disk (persistent storage)
+  • In your service → "Disks" tab
+  • Add disk: Mount Path = /data, Size = 1 GB
+
+STEP 6 — Your link: https://ewc-cms-taifa.onrender.com
+
+⚠️  NOTE: Free tier sleeps after 15 minutes of no use.
+    First visit after sleep takes ~30 seconds to wake up.
+    Paid plan ($7/month) stays always on.
+
+
+══════════════════════════════════════════════════════════════════════
+OPTION 3 — VPS / DEDICATED SERVER (FULL CONTROL)
+══════════════════════════════════════════════════════════════════════
+
+Best for: churches that want their own domain and full control.
+Cost: $4–6/month (DigitalOcean, Linode, Hetzner)
+
+STEP 1 — Get a VPS (e.g. DigitalOcean $4/month Ubuntu droplet)
+
+STEP 2 — SSH into your server:
+  ssh root@YOUR_SERVER_IP
+
+STEP 3 — Upload files:
+  (from your computer)
+  scp server.py EbenezerWC_CMS.html register.html root@YOUR_IP:/var/www/ewc/
+
+STEP 4 — Install screen (keeps server running):
+  apt install screen -y
+
+STEP 5 — Start the server permanently:
+  cd /var/www/ewc
+  screen -S ewc
+  python3 server.py
+  (Press Ctrl+A then D to detach — server keeps running)
+
+STEP 6 — Open firewall port:
+  ufw allow 3000
+
+STEP 7 — Access at:
+  http://YOUR_SERVER_IP:3000
+
+STEP 8 — Add domain + HTTPS (optional but recommended):
+  a. Buy domain ($10/year from Namecheap)
+  b. Point domain DNS to your server IP
+  c. Install Nginx + Certbot for free HTTPS:
+     apt install nginx certbot python3-certbot-nginx -y
+     certbot --nginx -d yourcms.church
+
+STEP 9 — Set server to restart on reboot:
+  Create /etc/systemd/system/ewc.service:
+  ─────────────────────────────────────────
+  [Unit]
+  Description=EWC CMS Server
+  After=network.target
+
+  [Service]
+  Type=simple
+  WorkingDirectory=/var/www/ewc
+  ExecStart=/usr/bin/python3 server.py
+  Restart=always
+  Environment=EWC_SECRET=YourSecretKeyHere
+  Environment=PORT=3000
+
+  [Install]
+  WantedBy=multi-user.target
+  ─────────────────────────────────────────
+  systemctl enable ewc
+  systemctl start ewc
+
+
+══════════════════════════════════════════════════════════════════════
+SHARING ACCESS WITH YOUR CHURCH TEAM
+══════════════════════════════════════════════════════════════════════
+
+Once live, anyone with the link can access the system.
+Create user accounts with different access levels:
+
+  ROLES:
+  admin  — Full access (Pastor, Admin officer)
+  leader — Add/edit members, attendance, records
+  user   — View only
+
+  Create accounts in: CMS → Users page → Add user
+
+
+══════════════════════════════════════════════════════════════════════
+ENVIRONMENT VARIABLES (CLOUD SETTINGS)
+══════════════════════════════════════════════════════════════════════
+
+Set these in Railway/Render/VPS for production:
+
+  EWC_SECRET   = Your long secret key (change from default!)
+                 Example: EWC2024TaifaCOP_ChangeThis!
+  PORT         = Set automatically by Railway/Render
+                 Default: 3000 (for local use)
+
+
+══════════════════════════════════════════════════════════════════════
+DATABASE BACKUP
+══════════════════════════════════════════════════════════════════════
+
+Your database is stored in /data/ewc_database.db on the cloud.
+
+TO BACK UP:
+  1. Login to CMS
+  2. Go to Settings → "Export full backup (JSON)"
+  3. Save to Google Drive or your computer
+  4. Do this every Sunday! 🙏
+
+TO RESTORE:
+  1. Go to Settings → "Import backup"
+  2. Choose your .json backup file
+
+
+══════════════════════════════════════════════════════════════════════
+SECURITY CHECKLIST
+══════════════════════════════════════════════════════════════════════
+
+  ✅ Change admin password immediately after first login
+  ✅ Set EWC_SECRET environment variable (don't use default)
+  ✅ Keep your GitHub repository PRIVATE
+  ✅ Create individual accounts — never share one login
+  ✅ Backup your database every Sunday
+  ✅ Use HTTPS (Railway/Render provide this automatically)
+
+
+══════════════════════════════════════════════════════════════════════
+COST SUMMARY
+══════════════════════════════════════════════════════════════════════
+
+  Railway.app    FREE ✅  Best for 24/7 with free tier
+  Render.com     FREE (sleeps) / $7/month (always on)
+  VPS (Hetzner)  ~$4/month — full control, best value
+  Custom domain  ~$10–15/year (optional)
+
+  TOTAL for free: GH₵0  ✅
+  TOTAL paid option: ~GH₵50–80/month (VPS + domain)
+
+
+God bless Ebenezer Worship Centre — Taifa! 🙏
+The Church of Pentecost · Taifa District · Greater Accra
