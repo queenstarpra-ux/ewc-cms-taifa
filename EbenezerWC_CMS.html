@@ -193,7 +193,7 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="church-info">
       <h1>Ebenezer Worship Centre — Taifa</h1>
-      <p>The Church of Pentecost · Taifa District · Greater Accra</p>
+      <p>The Church of Pentecost · <span id='sideDistrict'>Greater Accra</span></p>
     </div>
     <div class="hdr-right">
       <div id="hdrDate" style="font-size:10px"></div>
@@ -225,6 +225,7 @@ tr:hover td{background:#fafafa}
     <button class="nb" onclick="showPage('reports',this)">📈 Reports</button>
     <button class="nb" onclick="showPage('statsreport',this)">📊 Stat Report</button>
     <button class="nb" onclick="showPage('copreport',this)">📄 COP Annual Report</button>
+    <button class="nb" onclick="showPage('copreport',this)">📄 COP Annual Report</button>
     <button class="nb" onclick="showPage('users',this)">🔐 Users</button>
     <button class="nb" onclick="showPage('settings',this)">⚙️ Settings</button>
   </nav>
@@ -239,7 +240,7 @@ tr:hover td{background:#fafafa}
     <img src="https://image.pngaaa.com/448/4569448-middle.png" alt="COP" style="width:48px;height:48px;border-radius:50%;background:#fff;padding:2px;flex-shrink:0" onerror="this.style.display='none'">
     <div>
       <div style="font-size:15px;font-weight:700">Ebenezer Worship Centre — Taifa</div>
-      <div style="font-size:11px;opacity:0.85">The Church of Pentecost · Taifa District · Greater Accra</div>
+      <div style="font-size:11px;opacity:0.85">The Church of Pentecost · <span id='dashDistrict'></span></div>
       <div style="font-size:10px;opacity:0.7;margin-top:2px" id="dbDate"></div>
     </div>
     <div style="margin-left:auto;text-align:right;font-size:11px;opacity:0.9" id="dbGreeting"></div>
@@ -704,7 +705,7 @@ tr:hover td{background:#fafafa}
     <img src="https://image.pngaaa.com/448/4569448-middle.png" style="width:52px;height:52px;border-radius:50%;background:#fff;padding:3px;flex-shrink:0" onerror="this.style.display='none'">
     <div style="flex:1">
       <div style="font-size:15px;font-weight:700">THE CHURCH OF PENTECOST</div>
-      <div style="font-size:12px;opacity:0.85" id="copRptSubtitle">EBENEZER WORSHIP CENTRE — TAIFA DISTRICT</div>
+      <div style="font-size:12px;opacity:0.85" id="copRptSubtitle">EBENEZER WORSHIP CENTRE</div>
       <div style="font-size:11px;opacity:0.7;margin-top:2px">END-OF-YEAR COMPREHENSIVE REPORT</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
@@ -755,7 +756,7 @@ tr:hover td{background:#fafafa}
     <div class="card">
       <div class="card-title">⛪ Church information</div>
       <div class="fr"><label>Church name</label><input id="sCn" value="Ebenezer Worship Centre - Taifa"></div>
-      <div class="fg"><div class="fr"><label>District</label><input id="sDi" value="Taifa District"></div><div class="fr"><label>Area</label><input id="sAr" value="Greater Accra Area"></div></div>
+      <div class="fg"><div class="fr"><label>District</label><input id="sDi" placeholder="e.g. Taifa District"></div><div class="fr"><label>Area</label><input id="sAr" value="Greater Accra Area"></div></div>
       <div class="fg"><div class="fr"><label>District minister</label><input id="sPa" placeholder="Name"></div><div class="fr"><label>Local elder</label><input id="sEl" placeholder="Name"></div></div>
       <div class="fg"><div class="fr"><label>Phone</label><input id="sPh" placeholder="0244 000 000"></div><div class="fr"><label>Email</label><input type="email" id="sEm" placeholder="church@cop.org.gh"></div></div>
       <div class="fr"><label>Physical address</label><textarea id="sAd" rows="2" placeholder="Address"></textarea></div>
@@ -1466,8 +1467,8 @@ function showPage(id,el){
     special:async function(){await loadAll();renderSpecial();},
     scholarships:async function(){await loadAll();renderScholStats();renderSchol();},
     reports:function(){showReport('byrank',document.querySelector('#page-reports .tab'));},
-    statsreport:async function(){await loadAll();initStatsReport();renderStatsReport();},
     copreport:async function(){await loadAll();initCOPReport();renderCOPReport();},
+    statsreport:async function(){await loadAll();initStatsReport();renderStatsReport();},
     users:async function(){await loadAll();renderUsers();},
     settings:async function(){await loadAll();loadSettings();}
   };
@@ -2483,8 +2484,13 @@ async function delUser(id){if(!confirm('Remove this user?'))return;const r=await
 
 function loadSettings(){
   const cfg=DB.cfg;
-  const map={sCn:'name',sDi:'dist',sAr:'area',sPa:'pastor',sEl:'elder',sPh:'phone',sEm:'email',sAd:'addr',sSt:'svcTime',sAdKey:'adminKey',sC1l:'c1l',sC1d:'c1d',sC2l:'c2l',sC2d:'c2d',sC3l:'c3l',sC3d:'c3d'};
-  Object.entries(map).forEach(function(en){const el=document.getElementById(en[0]);if(el&&(cfg[en[1]]||cfg[en[1]]===''))el.value=cfg[en[1]]||'';});
+  const map={sCn:'name',sDi:'district',sAr:'area',sPa:'pastor',sEl:'elder',sPh:'phone',sEm:'email',sAd:'addr',sSt:'svcTime',sAdKey:'adminKey',sC1l:'c1l',sC1d:'c1d',sC2l:'c2l',sC2d:'c2d',sC3l:'c3l',sC3d:'c3d'};
+  Object.entries(map).forEach(function(en){const el=document.getElementById(en[0]);if(el)el.value=cfg[en[1]]||'';});
+  // Update dynamic district spans throughout UI
+  const dist=cfg.district||'';
+  const area=cfg.area||'Greater Accra Area';
+  const sd=document.getElementById('sideDistrict');if(sd)sd.textContent=area;
+  const dd=document.getElementById('dashDistrict');if(dd)dd.textContent='The Church of Pentecost'+(dist?' · '+dist:'')+' · '+area;
 }
 async function saveSettings(){
   const map={name:'sCn',dist:'sDi',area:'sAr',pastor:'sPa',elder:'sEl',phone:'sPh',email:'sEm',addr:'sAd',svcTime:'sSt',adminKey:'sAdKey'};
@@ -2968,6 +2974,13 @@ function initCOPReport(){
   }
 }
 
+function initCOPReport(){
+  const yr=today.getFullYear();
+  const years=[];
+  for(let y=yr;y>=yr-5;y--)years.push(y);
+  const sel=document.getElementById('copRptYear');
+  if(sel){sel.innerHTML=years.map(y=>'<option value="'+y+'"'+(y===yr?' selected':'')+'>'+y+'</option>').join('');}
+}
 function renderCOPReport(){
   const yr=parseInt((document.getElementById('copRptYear')||{value:today.getFullYear()}).value||today.getFullYear());
   const cfg=DB.cfg;
@@ -3023,7 +3036,7 @@ function renderCOPReport(){
   const outSouls=sum(yor,'souls');
   const minSouls=sum(ymm,'souls');
 
-  const district=cfg.district||'Taifa District';
+  const district=cfg.district||'';
   const area=cfg.area||'Greater Accra Area';
   const pastor=cfg.pastor||'[Resident Pastor]';
   const churchName=cfg.name||'Ebenezer Worship Centre - Taifa';
@@ -3031,7 +3044,7 @@ function renderCOPReport(){
 
   // Update subtitle
   const sub=document.getElementById('copRptSubtitle');
-  if(sub)sub.textContent=churchName.toUpperCase()+' — '+district.toUpperCase();
+  if(sub)sub.textContent=churchName.toUpperCase()+(district?' — '+district.toUpperCase():'');
 
   function S(num,title,content){
     return `<div class="card" style="margin-bottom:16px;page-break-inside:avoid">
@@ -3054,7 +3067,7 @@ function renderCOPReport(){
     <strong style="color:var(--pr);font-size:13px">THE CHURCH OF PENTECOST</strong><br>
     ${churchName.toUpperCase()}<br>
     END-OF-YEAR ${yr} COMPREHENSIVE REPORT<br>
-    <span style="font-size:10px">${district} · ${area}</span>
+    <span style="font-size:10px">${district?district+' · ':''}${area}</span>
   </div>`;
 
   // ── SECTION 1: INTRODUCTION ───────────────────────────────────
@@ -3102,7 +3115,7 @@ function renderCOPReport(){
 
   // ── SECTION 4: DISTRICT REVIEWS ──────────────────────────────
   html+=S('4.0','DISTRICT REVIEWS AND APPOINTMENTS',`
-    <p>During the ${yr} reporting period, the <strong>${district}</strong> conducted its regular presbytery meetings and district reviews in accordance with the Church of Pentecost's governance structure.</p>
+    <p>During the ${yr} reporting period, the assembly conducted its regular presbytery meetings and reviews in accordance with the Church of Pentecost's governance structure.</p>
     <p style="margin-top:8px">The assembly held periodic reviews of ministry activities, attendance trends, and outreach effectiveness. Leadership appointments and reviews were handled in consultation with the Area and District Executives.</p>
     ${row('Ministry meetings held (year)',ymm.length)}
     ${row('Average meeting attendance',ymm.length?Math.round(sum(ymm,'att')/ymm.length):0)}
@@ -3396,7 +3409,7 @@ function renderCOPReport(){
   html+=S('20.0','CONCLUSION',`
     <p>We thank the gracious Lord for His enabling power and the ability to execute the planned activities for the year <strong>${yr}</strong>. To Him be all the glory, honour, and praise.</p>
     <p style="margin-top:8px">This report is a testimony of God's faithfulness to the <strong>${churchName}</strong>. With <strong>${totalSouls} souls won</strong>, <strong>${totalHGB} Holy Ghost baptisms</strong>, <strong>${totalWaterBap} water baptisms</strong>, and a membership of <strong>${activeM.length} active members</strong>, we have much to be grateful for.</p>
-    <p style="margin-top:8px">We are optimistic about drawing on divine strength and power for greater exploits in the year <strong>${yr+1}</strong>, as we continue to advance the Kingdom of God in the <strong>${district}</strong> and beyond.</p>
+    <p style="margin-top:8px">We are optimistic about drawing on divine strength and power for greater exploits in the year <strong>${yr+1}</strong>, as we continue to advance the Kingdom of God in the <strong>${district||area}</strong> and beyond.</p>
     <div style="margin-top:24px;padding:16px;background:#f0f4ff;border-radius:8px;border:1px solid #c5d0f5">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px">
         <div>
@@ -3409,7 +3422,7 @@ function renderCOPReport(){
           <div style="font-weight:700;border-bottom:1px solid #c5d0f5;padding-bottom:4px;margin-bottom:8px">Presiding Elder:</div>
           <div><strong>${elder}</strong></div>
           <div style="color:var(--tx2)">Presiding Elder</div>
-          <div style="color:var(--tx2)">${district}</div>
+          <div style="color:var(--tx2)">${district||area}</div>
         </div>
       </div>
       <div style="text-align:center;margin-top:12px;font-size:10px;color:var(--tx3)">
@@ -3436,7 +3449,7 @@ function exportCOPReport(){
   });
   const text=tmp.innerText||tmp.textContent;
   const fullText='THE CHURCH OF PENTECOST\n'+(cfg.name||'EBENEZER WORSHIP CENTRE - TAIFA').toUpperCase()+
-    '\nEND-OF-YEAR '+yr+' COMPREHENSIVE REPORT\n'+(cfg.district||'Taifa District').toUpperCase()+
+    '\nEND-OF-YEAR '+yr+' COMPREHENSIVE REPORT\n'+(cfg.district?cfg.district.toUpperCase():'')+
     ' · '+(cfg.area||'Greater Accra Area').toUpperCase()+
     '\n\n'+text;
   const blob=new Blob([fullText],{type:'text/plain;charset=utf-8'});

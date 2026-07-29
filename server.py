@@ -3,7 +3,7 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║  Ebenezer Worship Centre — Taifa                            ║
 ║  Church Management System — Cloud Server                    ║
-║  The Church of Pentecost · Taifa District · Greater Accra   ║
+║  The Church of Pentecost · Greater Accra   ║
 ║                                                              ║
 ║  Zero external dependencies — Pure Python 3 stdlib only     ║
 ║  Works on:  Railway · Render · VPS · localhost              ║
@@ -236,7 +236,7 @@ def db_init():
     );
     INSERT OR IGNORE INTO church_config VALUES
         ('name','Ebenezer Worship Centre - Taifa'),
-        ('district','Taifa District'),
+        ('district',''),
         ('area','Greater Accra Area'),
         ('pastor',''), ('elder',''), ('phone',''),
         ('email',''), ('addr',''), ('svcTime','8:00 AM'),
@@ -689,7 +689,7 @@ if __name__ == "__main__":
     print("""
 ╔══════════════════════════════════════════════════════════════╗
 ║  Ebenezer Worship Centre — Taifa CMS Server                 ║
-║  The Church of Pentecost · Taifa District                   ║
+║  The Church of Pentecost · Greater Accra                    ║
 ╚══════════════════════════════════════════════════════════════╝""")
 
     print(f"\n  📂 Database: {DB_PATH}")
