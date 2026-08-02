@@ -36,11 +36,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sdot.off{background:#e74c3c}
 .user-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.15);padding:4px 9px;border-radius:20px;font-size:10px;cursor:pointer;margin-top:3px}
 @keyframes pu{0%,100%{opacity:1}50%{opacity:0.4}}
-nav.nav{display:flex;overflow-x:auto;padding:0 10px;gap:2px;scrollbar-width:none}
-nav.nav::-webkit-scrollbar{display:none}
-.nb{flex-shrink:0;background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.85);padding:7px 10px;border-radius:7px 7px 0 0;cursor:pointer;font-size:10.5px;display:flex;align-items:center;gap:4px;white-space:nowrap}
-.nb:hover,.nb.active{background:rgba(255,255,255,0.2);color:#fff}
-.nb.active{background:#fff;color:var(--pr);font-weight:700}
+/* ── 3-row navigation grid ── */
+nav.nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:3px;padding:6px 10px}
+.nb{background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.85);
+    padding:6px 8px;border-radius:7px;cursor:pointer;font-size:10px;
+    display:flex;align-items:center;gap:4px;white-space:nowrap;
+    justify-content:flex-start;transition:background 0.15s}
+.nb:hover{background:rgba(255,255,255,0.22);color:#fff}
+.nb.active{background:#fff;color:var(--pr);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,0.15)}
+/* nav group separators */
+.nav-sep{width:100%;height:1px;background:rgba(255,255,255,0.15);
+         grid-column:1/-1;margin:1px 0}
+@media(max-width:600px){nav.nav{grid-template-columns:repeat(auto-fill,minmax(90px,1fr));}
+  .nb{font-size:9.5px;padding:5px 6px}}
 .content{flex:1;padding:14px;max-width:1300px;width:100%;margin:0 auto}
 .page{display:none}.page.active{display:block}
 .card{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
@@ -250,31 +258,36 @@ tr:hover td{background:#fafafa}
     </div>
   </div>
   <nav class="nav">
+    <!-- ROW 1: Core ministry & members -->
     <button class="nb active" onclick="showPage('dashboard',this)">🏠 Dashboard</button>
     <button class="nb" onclick="showPage('members',this)">👥 Members</button>
     <button class="nb" onclick="showPage('checkin',this)">🔍 Mark Attendance</button>
     <button class="nb" onclick="showPage('attendance',this)">📅 Attendance Log</button>
+    <button class="nb" onclick="showPage('converts',this)">✝️ Converts</button>
+    <button class="nb" onclick="showPage('transfers',this)">🔄 Transfers</button>
+    <button class="nb" onclick="showPage('cells',this)">🏘️ Home Cells</button>
+    <button class="nb" onclick="showPage('birthdays',this)">🎂 Birthdays</button>
+    <button class="nb" onclick="showPage('events',this)">📅 Events</button>
+    <button class="nb" onclick="showPage('prayer',this)">🙏 Prayer</button>
+    <div class="nav-sep"></div>
+    <!-- ROW 2: Finance & giving -->
     <button class="nb" onclick="showPage('payment',this)">💳 Give / Pay</button>
     <button class="nb" onclick="showPage('tithes',this)">💰 Tithes</button>
     <button class="nb" onclick="showPage('expenses',this)">📤 Expenses</button>
     <button class="nb" onclick="showPage('finance',this)">📊 Finance</button>
-    <button class="nb" onclick="showPage('cells',this)">🏘️ Home Cells</button>
-    <button class="nb" onclick="showPage('converts',this)">✝️ Converts</button>
-    <button class="nb" onclick="showPage('events',this)">📅 Events</button>
-    <button class="nb" onclick="showPage('birthdays',this)">🎂 Birthdays</button>
-    <button class="nb" onclick="showPage('beneficiaries',this)">🤝 Welfare</button>
-    <button class="nb" onclick="showPage('prayer',this)">🙏 Prayer</button>
-    <button class="nb" onclick="showPage('transfers',this)">🔄 Transfers</button>
     <button class="nb" onclick="showPage('weekly',this)">📝 Weekly Entry</button>
+    <button class="nb" onclick="showPage('beneficiaries',this)">🤝 Welfare</button>
+    <button class="nb" onclick="showPage('scholarships',this)">🎓 Scholarships</button>
+    <button class="nb" onclick="showPage('equipment',this)">🖥️ Equipment</button>
     <button class="nb" onclick="showPage('outreach',this)">🌍 Outreach</button>
     <button class="nb" onclick="showPage('ministrymtg',this)">🤝 Ministry Mtgs</button>
+    <div class="nav-sep"></div>
+    <!-- ROW 3: Spiritual records, reports & admin -->
     <button class="nb" onclick="showPage('holyghostbap',this)">🔥 Holy Ghost</button>
     <button class="nb" onclick="showPage('special',this)">⭐ Special Events</button>
-    <button class="nb" onclick="showPage('scholarships',this)">🎓 Scholarships</button>
     <button class="nb" onclick="showPage('reports',this)">📈 Reports</button>
     <button class="nb" onclick="showPage('statsreport',this)">📊 Stat Report</button>
-    <button class="nb" onclick="showPage('copreport',this)">📄 COP Annual Report</button>
-    <button class="nb" onclick="showPage('copreport',this)">📄 COP Annual Report</button>
+    <button class="nb" onclick="showPage('copreport',this)">📄 COP Report</button>
     <button class="nb" onclick="showPage('users',this)">🔐 Users</button>
     <button class="nb" onclick="showPage('settings',this)">⚙️ Settings</button>
   </nav>
@@ -622,6 +635,86 @@ tr:hover td{background:#fafafa}
   </div>
 </div>
 
+
+
+<!-- ===== EQUIPMENT REGISTRY PAGE ===== -->
+<div id="page-equipment" class="page">
+
+  <!-- Header stats -->
+  <div class="g4" id="eqStats" style="margin-bottom:14px"></div>
+
+  <!-- Action bar -->
+  <div class="sec-h" style="margin-bottom:12px">
+    <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="eqSearch" placeholder="🔍 Search equipment..." oninput="renderEquipment()" style="width:200px;font-size:12px">
+      <select id="eqCatF" onchange="renderEquipment()" style="width:auto;font-size:12px">
+        <option value="">All categories</option>
+        <option>Audio / Sound</option>
+        <option>Visual / Projection</option>
+        <option>Musical Instruments</option>
+        <option>Furniture</option>
+        <option>Electrical</option>
+        <option>Vehicles</option>
+        <option>IT / Computers</option>
+        <option>Cleaning</option>
+        <option>Other</option>
+      </select>
+      <select id="eqStatusF" onchange="renderEquipment()" style="width:auto;font-size:12px">
+        <option value="">All statuses</option>
+        <option value="Good">Good condition</option>
+        <option value="Fair">Fair condition</option>
+        <option value="Poor">Needs repair</option>
+        <option value="Faulty">Faulty</option>
+        <option value="Disposed">Disposed</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-o btn-sm" onclick="eqExportCSV()">📥 Export</button>
+      <button class="btn btn-p" onclick="openAddEquipment()">+ Add equipment</button>
+    </div>
+  </div>
+
+  <!-- Equipment table -->
+  <div class="card">
+    <div class="card-title">🖥️ Church equipment registry</div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item / Name</th>
+            <th>Category</th>
+            <th>Serial / ID</th>
+            <th>Quantity</th>
+            <th>Condition</th>
+            <th>Location</th>
+            <th>Value (GH₵)</th>
+            <th>Date acquired</th>
+            <th>Assigned to</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="eqBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Maintenance log section -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title" style="justify-content:space-between">
+      <span>🔧 Maintenance & service log</span>
+      <button class="btn btn-p btn-sm" onclick="openAddMaintenance()">+ Log maintenance</button>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Equipment</th><th>Issue / Work done</th><th>By whom</th><th>Cost (GH₵)</th><th>Next service</th><th>Status</th></tr>
+        </thead>
+        <tbody id="eqMaintBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <div id="page-tithes" class="page">
   <div class="g4" style="margin-bottom:12px" id="titheStats"></div>
@@ -1517,18 +1610,18 @@ const del  = (p)       => api('DELETE', p);
 const DB = {
   m:[], t:[], e:[], a:[], c:[], b:[], ev:[], pr:[],
   wk:[], xf:[], or:[], mm:[], hgb:[], sp:[], sc:[],
-  users:[], cfg:{}
+  eq:[], mt:[], users:[], cfg:{}
 };
 const _cache = {};
 
 async function loadAll() {
   showLoader(true);
-  const [m,t,e,a,c,b,ev,pr,wk,xf,or_,mm,hgb,sp,sc,users,cfg] = await Promise.all([
+  const [m,t,e,a,c,b,ev,pr,wk,xf,or_,mm,hgb,sp,sc,users,cfg,eq,mt] = await Promise.all([
     get('members'), get('tithes'), get('expenses'), get('attendance'),
     get('converts'), get('beneficiaries'), get('events'), get('prayer_requests'),
     get('weekly_records'), get('transfers'), get('outreach'), get('ministry_meetings'),
     get('holy_ghost_baptisms'), get('special_events'), get('scholarships'),
-    get('users'), get('config')
+    get('users'), get('config'), get('equipment'), get('maintenance')
   ]);
   DB.m  = m    || [];
   DB.t  = (t   || []).map(x=>({...x, amt:x.amt||0, dt:x.dt||'', cat:x.cat||'', mid:x.mid||'', mth:x.mth||'Cash', rcv:x.rcv||'', not:x.not_||''}));
@@ -1545,6 +1638,8 @@ async function loadAll() {
   DB.hgb= hgb  || [];
   DB.sp = sp   || [];
   DB.sc = sc   || [];
+  DB.eq = eq   || [];
+  DB.mt = mt   || [];
   DB.users = users || [];
   DB.cfg = cfg || {};
   showLoader(false);
@@ -1946,6 +2041,7 @@ function showPage(id,el){
     scholarships:async function(){await loadAll();renderScholStats();renderSchol();},
     payment:async function(){await loadAll();initPaymentPage();},
     reports:function(){showReport('byrank',document.querySelector('#page-reports .tab'));},
+    equipment:async function(){await loadAll();initEquipmentPage();},
     copreport:async function(){await loadAll();initCOPReport();renderCOPReport();},
     statsreport:async function(){await loadAll();initStatsReport();renderStatsReport();},
     users:async function(){await loadAll();renderUsers();},
@@ -3975,6 +4071,226 @@ function exportCOPReport(){
   showToast('Report exported ✅');
 }
 
+
+// =====================================================================
+// EQUIPMENT REGISTRY
+// =====================================================================
+// DB.eq  — equipment items
+// DB.mt  — maintenance logs
+// (both loaded from server; stored in localStorage cache too)
+
+function initEquipmentPage(){
+  renderEquipmentStats();
+  renderEquipment();
+  renderMaintenance();
+}
+
+function renderEquipmentStats(){
+  const eq = DB.eq||[];
+  const mt = DB.mt||[];
+  const total = eq.reduce(function(s,x){return s+(+x.qty||1);},0);
+  const totalVal = eq.reduce(function(s,x){return s+(parseFloat(x.val||0)*(+x.qty||1));},0);
+  const faulty = eq.filter(function(x){return x.status==='Faulty'||x.status==='Poor';}).length;
+  const mtCost = mt.reduce(function(s,x){return s+parseFloat(x.cost||0);},0);
+  const el=document.getElementById('eqStats');
+  if(!el)return;
+  el.innerHTML=
+    '<div class="stat"><div class="stat-n">'+eq.length+'</div><div class="stat-l">Items registered</div><div class="stat-sub">'+total+' total units</div></div>'+
+    '<div class="stat"><div class="stat-n fin-income">GH₵'+fmt(totalVal)+'</div><div class="stat-l">Total asset value</div></div>'+
+    '<div class="stat"><div class="stat-n '+(faulty>0?'fin-exp':'')+'">'+faulty+'</div><div class="stat-l">Need attention</div><div class="stat-sub">faulty or poor</div></div>'+
+    '<div class="stat"><div class="stat-n fin-exp">GH₵'+fmt(mtCost)+'</div><div class="stat-l">Maintenance spent</div></div>';
+}
+
+function renderEquipment(){
+  const eq = DB.eq||[];
+  const q=(document.getElementById('eqSearch')||{value:''}).value.toLowerCase();
+  const cf=(document.getElementById('eqCatF')||{value:''}).value;
+  const sf=(document.getElementById('eqStatusF')||{value:''}).value;
+  const tbody=document.getElementById('eqBody');
+  if(!tbody)return;
+
+  const list=eq.filter(function(x){
+    if(cf&&x.cat!==cf)return false;
+    if(sf&&x.status!==sf)return false;
+    if(q&&!(x.name+x.cat+(x.serial||'')+(x.brand||'')+(x.loc||'')+(x.assigned||'')).toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="11"><div class="empty">No equipment found.<br>Click <strong>+ Add equipment</strong> to register your first item.</div></td></tr>';
+    return;
+  }
+
+  const condColor={'Good':'#2d6a4f','Fair':'#d4860a','Poor':'#e67e22','Faulty':'#c0392b','Disposed':'#aaa'};
+  const condBadge={'Good':'bact','Fair':'bam','Poor':'bam','Faulty':'binact','Disposed':'binact'};
+
+  tbody.innerHTML=list.map(function(x,i){
+    const today=new Date().toISOString().split('T')[0];
+    const warrantyExpired=x.warranty&&x.warranty<today;
+    const serviceOverdue=x.nextSvc&&x.nextSvc<today;
+    return '<tr>'+
+      '<td style="color:var(--tx3)">'+(i+1)+'</td>'+
+      '<td><div style="font-weight:600;font-size:12px">'+x.name+
+        (warrantyExpired?'<span title="Warranty expired" style="font-size:10px;margin-left:4px">⚠️</span>':'')+
+        (serviceOverdue?'<span title="Service overdue" style="font-size:10px;margin-left:2px">🔧</span>':'')+
+      '</div>'+
+      '<div style="font-size:10px;color:var(--tx3)">'+(x.brand||'')+(x.model?' · '+x.model:'')+'</div></td>'+
+      '<td><span class="badge bc2" style="font-size:9px">'+x.cat+'</span></td>'+
+      '<td style="font-size:11px;font-family:monospace">'+(x.serial||'—')+'</td>'+
+      '<td style="text-align:center;font-weight:700">'+( x.qty||1)+'</td>'+
+      '<td><span class="badge '+(condBadge[x.status]||'bam')+'" style="font-size:9px;color:'+condColor[x.status]+'">'+x.status+'</span></td>'+
+      '<td style="font-size:11px">'+(x.loc||'—')+'</td>'+
+      '<td style="font-size:11px" class="fin-income">'+( x.val?'GH₵'+fmt(x.val*(+x.qty||1)):'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+(x.date||'—')+'</td>'+
+      '<td style="font-size:11px">'+(x.assigned||'—')+'</td>'+
+      '<td style="white-space:nowrap">'+
+        '<button class="btn btn-o btn-xs" style="margin-right:3px" onclick="editEquipment('+x.id+')">✏️</button>'+
+        '<button class="btn btn-r btn-xs" onclick="delEquipment('+x.id+')">🗑️</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function renderMaintenance(){
+  const mt = DB.mt||[];
+  const eq = DB.eq||[];
+  const tbody=document.getElementById('eqMaintBody');
+  if(!tbody)return;
+  if(!mt.length){
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty">No maintenance logs yet. Click <strong>+ Log maintenance</strong> to record a service.</div></td></tr>';
+    return;
+  }
+  const stColor={'Resolved':'#2d6a4f','Ongoing':'#d4860a','Pending':'#e67e22','Replaced':'#1a3a6b','Disposed':'#aaa'};
+  const stBadge={'Resolved':'bact','Ongoing':'bam','Pending':'bam','Replaced':'bc1','Disposed':'binact'};
+  tbody.innerHTML=mt.slice().reverse().map(function(x){
+    const item=eq.find(function(e){return e.id==x.eqId;})||{name:'Unknown item'};
+    return '<tr>'+
+      '<td style="font-size:11px">'+x.date+'</td>'+
+      '<td><strong style="font-size:12px">'+item.name+'</strong></td>'+
+      '<td style="font-size:11px">'+x.desc+'</td>'+
+      '<td style="font-size:11px">'+(x.by||'—')+'</td>'+
+      '<td class="fin-exp" style="font-size:11px">'+(x.cost?'GH₵'+fmt(x.cost):'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+(x.next||'—')+'</td>'+
+      '<td><span class="badge '+(stBadge[x.status]||'bam')+'" style="font-size:9px">'+x.status+'</span></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function openAddEquipment(){
+  document.getElementById('eqId').value='';
+  ['eqName','eqBrand','eqModel','eqSerial','eqDate','eqVal','eqSupplier',
+   'eqReceipt','eqAssigned','eqWarranty','eqLastSvc','eqNextSvc','eqNotes'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  const qty=document.getElementById('eqQty');if(qty)qty.value='1';
+  const cat=document.getElementById('eqCat');if(cat)cat.value='Audio / Sound';
+  const how=document.getElementById('eqHow');if(how)how.value='Purchased';
+  const loc=document.getElementById('eqLoc');if(loc)loc.value='Main auditorium';
+  const st=document.getElementById('eqStatus');if(st)st.value='Good';
+  document.getElementById('mEquipment').classList.add('open');
+}
+
+function editEquipment(id){
+  const x=(DB.eq||[]).find(function(e){return e.id===id||e.id==id;});
+  if(!x)return;
+  document.getElementById('eqId').value=x.id;
+  const map={eqName:'name',eqBrand:'brand',eqModel:'model',eqSerial:'serial',
+    eqDate:'date',eqVal:'val',eqSupplier:'supplier',eqReceipt:'receipt',
+    eqAssigned:'assigned',eqWarranty:'warranty',eqLastSvc:'lastSvc',
+    eqNextSvc:'nextSvc',eqNotes:'notes',eqQty:'qty',eqCat:'cat',
+    eqHow:'how',eqLoc:'loc',eqStatus:'status'};
+  Object.entries(map).forEach(function(en){
+    const el=document.getElementById(en[0]);
+    if(el)el.value=x[en[1]]||'';
+  });
+  document.getElementById('mEquipment').classList.add('open');
+}
+
+async function saveEquipment(){
+  const name=(document.getElementById('eqName')||{value:''}).value.trim();
+  if(!name){showToast('Equipment name is required','error');return;}
+  function gv(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+  const data={
+    name:name, cat:gv('eqCat'), brand:gv('eqBrand'), model:gv('eqModel'),
+    serial:gv('eqSerial'), qty:gv('eqQty')||1, date:gv('eqDate'),
+    how:gv('eqHow'), val:gv('eqVal')||0, supplier:gv('eqSupplier'),
+    receipt:gv('eqReceipt'), loc:gv('eqLoc'), assigned:gv('eqAssigned'),
+    status:gv('eqStatus'), warranty:gv('eqWarranty'),
+    lastSvc:gv('eqLastSvc'), nextSvc:gv('eqNextSvc'), notes:gv('eqNotes')
+  };
+  const id=document.getElementById('eqId').value;
+  let r;
+  if(id){r=await put('equipment/'+id,data);}
+  else{r=await post('equipment',data);}
+  if(r&&r.success){
+    closeM('mEquipment');await loadAll();
+    renderEquipmentStats();renderEquipment();
+    showToast('Equipment '+(id?'updated':'added')+' ✅');
+  }else showToast('Save failed','error');
+}
+
+async function delEquipment(id){
+  if(!confirm('Remove this equipment from the registry?'))return;
+  const r=await del('equipment/'+id);
+  if(r&&r.success){await loadAll();renderEquipmentStats();renderEquipment();showToast('Removed','warn');}
+  else showToast('Delete failed','error');
+}
+
+function openAddMaintenance(){
+  document.getElementById('mtId').value='';
+  ['mtDate','mtDesc','mtBy','mtCost','mtNext','mtNotes'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  const dt=document.getElementById('mtDate');
+  if(dt)dt.value=new Date().toISOString().split('T')[0];
+  const st=document.getElementById('mtStatus');if(st)st.value='Resolved';
+  // Populate equipment select
+  const sel=document.getElementById('mtEq');
+  if(sel){
+    sel.innerHTML='<option value="">— select equipment —</option>'+
+      (DB.eq||[]).map(function(x){return '<option value="'+x.id+'">'+x.name+(x.serial?' ('+x.serial+')':'')+'</option>';}).join('');
+  }
+  document.getElementById('mMaintenance').classList.add('open');
+}
+
+async function saveMaintenance(){
+  const desc=(document.getElementById('mtDesc')||{value:''}).value.trim();
+  const eqId=(document.getElementById('mtEq')||{value:''}).value;
+  if(!desc){showToast('Please describe the work done','error');return;}
+  if(!eqId){showToast('Please select the equipment','error');return;}
+  function gv(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+  const data={
+    date:gv('mtDate')||new Date().toISOString().split('T')[0],
+    eqId:eqId, desc:desc, by:gv('mtBy'),
+    cost:gv('mtCost')||0, next:gv('mtNext'),
+    status:gv('mtStatus'), notes:gv('mtNotes')
+  };
+  const r=await post('maintenance',data);
+  if(r&&r.success){
+    // Update equipment last service date
+    if(gv('mtDate')){await put('equipment/'+eqId,{lastSvc:gv('mtDate'),status:gv('mtStatus')==='Resolved'?'Good':gv('mtStatus')==='Disposed'?'Disposed':'Fair'});}
+    closeM('mMaintenance');await loadAll();
+    renderEquipmentStats();renderEquipment();renderMaintenance();
+    showToast('Maintenance log saved ✅');
+  }else showToast('Save failed','error');
+}
+
+function eqExportCSV(){
+  const eq=DB.eq||[];
+  const rows=[['#','Name','Category','Brand','Model','Serial','Qty','Condition','Location',
+    'Assigned to','Value (GH₵)','Date acquired','How acquired','Supplier','Warranty','Next service','Notes']];
+  eq.forEach(function(x,i){
+    rows.push([i+1,x.name,x.cat,x.brand||'',x.model||'',x.serial||'',x.qty||1,x.status,
+      x.loc||'',x.assigned||'',x.val||0,x.date||'',x.how||'',x.supplier||'',
+      x.warranty||'',x.nextSvc||'',x.notes||'']);
+  });
+  const csv=rows.map(function(r){return r.map(function(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='EWC_Equipment_'+new Date().toISOString().split('T')[0]+'.csv';a.click();
+  showToast('Equipment list exported ✅');
+}
+
 if('serviceWorker' in navigator){
   const sw="const C='ewc-v2';self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll([location.href]))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match(e.request)))));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k))))));";
   const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(){});
@@ -4719,6 +5035,153 @@ function manageSavedAccountsDetailed(){
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)">
     <button class="btn btn-o" onclick="closeM('mResetPass')">Cancel</button>
     <button class="btn btn-p" onclick="resetUserPassword()">🔑 Update password</button>
+  </div>
+</div></div>
+
+
+<!-- ===== ADD EQUIPMENT MODAL ===== -->
+<div class="overlay" id="mEquipment">
+<div class="modal">
+  <div class="modal-h">
+    <span>🖥️ Add / edit equipment</span>
+    <button class="btn btn-o btn-sm" onclick="closeM('mEquipment')">✕</button>
+  </div>
+  <input type="hidden" id="eqId">
+
+  <!-- Basic info -->
+  <div style="font-size:11px;font-weight:700;color:var(--pr);margin-bottom:8px;border-left:3px solid var(--pr);padding-left:8px;text-transform:uppercase">📋 Item details</div>
+  <div class="fg">
+    <div class="fr"><label>Item name *</label><input id="eqName" placeholder="e.g. Wireless microphone"></div>
+    <div class="fr"><label>Category *</label>
+      <select id="eqCat">
+        <option>Audio / Sound</option>
+        <option>Visual / Projection</option>
+        <option>Musical Instruments</option>
+        <option>Furniture</option>
+        <option>Electrical</option>
+        <option>Vehicles</option>
+        <option>IT / Computers</option>
+        <option>Cleaning</option>
+        <option>Other</option>
+      </select>
+    </div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Brand / Make</label><input id="eqBrand" placeholder="e.g. Shure, Sony, Casio"></div>
+    <div class="fr"><label>Model</label><input id="eqModel" placeholder="e.g. SM58, HT-X8500"></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Serial number / Asset ID</label><input id="eqSerial" placeholder="e.g. SN-12345 or EWC-001"></div>
+    <div class="fr"><label>Quantity</label><input type="number" id="eqQty" placeholder="1" min="1" value="1"></div>
+  </div>
+
+  <!-- Acquisition -->
+  <div style="font-size:11px;font-weight:700;color:var(--pr);margin:12px 0 8px;border-left:3px solid #2d6a4f;padding-left:8px;text-transform:uppercase">💰 Acquisition</div>
+  <div class="fg">
+    <div class="fr"><label>Date acquired</label><input type="date" id="eqDate"></div>
+    <div class="fr"><label>Acquired how</label>
+      <select id="eqHow">
+        <option>Purchased</option>
+        <option>Donated</option>
+        <option>Grant / Fund</option>
+        <option>On loan</option>
+        <option>Hired</option>
+        <option>Other</option>
+      </select>
+    </div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Purchase price / Value (GH₵)</label><input type="number" id="eqVal" placeholder="0.00" step="0.01" min="0"></div>
+    <div class="fr"><label>Supplier / Donor</label><input id="eqSupplier" placeholder="Who supplied or donated it"></div>
+  </div>
+  <div class="fr"><label>Receipt / Invoice number</label><input id="eqReceipt" placeholder="Receipt or invoice reference"></div>
+
+  <!-- Location & assignment -->
+  <div style="font-size:11px;font-weight:700;color:var(--pr);margin:12px 0 8px;border-left:3px solid #6c3483;padding-left:8px;text-transform:uppercase">📍 Location & custody</div>
+  <div class="fg">
+    <div class="fr"><label>Location / Storage</label>
+      <select id="eqLoc">
+        <option>Main auditorium</option>
+        <option>Store room</option>
+        <option>Pastor's office</option>
+        <option>Sound room</option>
+        <option>Children's room</option>
+        <option>Cell 1 leader</option>
+        <option>Cell 2 leader</option>
+        <option>Cell 3 leader</option>
+        <option>Member's custody</option>
+        <option>Off-site</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="fr"><label>Assigned to / Custodian</label><input id="eqAssigned" placeholder="Name of person responsible"></div>
+  </div>
+
+  <!-- Condition & warranty -->
+  <div style="font-size:11px;font-weight:700;color:var(--pr);margin:12px 0 8px;border-left:3px solid #c0392b;padding-left:8px;text-transform:uppercase">🔧 Condition & warranty</div>
+  <div class="fg">
+    <div class="fr"><label>Current condition</label>
+      <select id="eqStatus">
+        <option value="Good">Good — working perfectly</option>
+        <option value="Fair">Fair — working with minor issues</option>
+        <option value="Poor">Poor — needs repair</option>
+        <option value="Faulty">Faulty — not working</option>
+        <option value="Disposed">Disposed / Written off</option>
+      </select>
+    </div>
+    <div class="fr"><label>Warranty expiry date</label><input type="date" id="eqWarranty"></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Last serviced date</label><input type="date" id="eqLastSvc"></div>
+    <div class="fr"><label>Next service due</label><input type="date" id="eqNextSvc"></div>
+  </div>
+  <div class="fr"><label>Notes / description</label>
+    <textarea id="eqNotes" rows="2" placeholder="Any additional notes about this equipment..."></textarea>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)">
+    <button class="btn btn-o" onclick="closeM('mEquipment')">Cancel</button>
+    <button class="btn btn-p" onclick="saveEquipment()">💾 Save equipment</button>
+  </div>
+</div></div>
+
+<!-- ===== ADD MAINTENANCE MODAL ===== -->
+<div class="overlay" id="mMaintenance">
+<div class="modal" style="max-width:480px">
+  <div class="modal-h">
+    <span>🔧 Log maintenance / service</span>
+    <button class="btn btn-o btn-sm" onclick="closeM('mMaintenance')">✕</button>
+  </div>
+  <input type="hidden" id="mtId">
+  <div class="fg">
+    <div class="fr"><label>Date *</label><input type="date" id="mtDate"></div>
+    <div class="fr"><label>Equipment *</label>
+      <select id="mtEq"><option value="">— select equipment —</option></select>
+    </div>
+  </div>
+  <div class="fr"><label>Issue reported / Work done *</label>
+    <textarea id="mtDesc" rows="2" placeholder="Describe the issue or maintenance work done..."></textarea>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Done by (technician / person)</label><input id="mtBy" placeholder="Name of technician or member"></div>
+    <div class="fr"><label>Cost (GH₵)</label><input type="number" id="mtCost" placeholder="0.00" min="0" step="0.01"></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Next service due</label><input type="date" id="mtNext"></div>
+    <div class="fr"><label>Status after service</label>
+      <select id="mtStatus">
+        <option value="Resolved">Resolved — working now</option>
+        <option value="Ongoing">Ongoing — in progress</option>
+        <option value="Pending">Pending — awaiting parts/funds</option>
+        <option value="Replaced">Replaced item</option>
+        <option value="Disposed">Disposed / Written off</option>
+      </select>
+    </div>
+  </div>
+  <div class="fr"><label>Notes</label><input id="mtNotes" placeholder="Additional notes..."></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)">
+    <button class="btn btn-o" onclick="closeM('mMaintenance')">Cancel</button>
+    <button class="btn btn-p" onclick="saveMaintenance()">💾 Save log</button>
   </div>
 </div></div>
 

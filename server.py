@@ -214,6 +214,28 @@ def db_init():
         nts TEXT DEFAULT '',
         created TEXT DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS equipment (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT DEFAULT '', cat TEXT DEFAULT '',
+        brand TEXT DEFAULT '', model TEXT DEFAULT '',
+        serial TEXT DEFAULT '', qty INTEGER DEFAULT 1,
+        date TEXT DEFAULT '', how TEXT DEFAULT 'Purchased',
+        val REAL DEFAULT 0, supplier TEXT DEFAULT '',
+        receipt TEXT DEFAULT '', loc TEXT DEFAULT '',
+        assigned TEXT DEFAULT '', status TEXT DEFAULT 'Good',
+        warranty TEXT DEFAULT '', lastSvc TEXT DEFAULT '',
+        nextSvc TEXT DEFAULT '', notes TEXT DEFAULT '',
+        created TEXT DEFAULT (datetime('now')),
+        updated TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS maintenance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT DEFAULT '', eqId INTEGER DEFAULT 0,
+        desc TEXT DEFAULT '', by TEXT DEFAULT '',
+        cost REAL DEFAULT 0, next TEXT DEFAULT '',
+        status TEXT DEFAULT 'Resolved', notes TEXT DEFAULT '',
+        created TEXT DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS member_registrations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         token TEXT DEFAULT '',
@@ -305,7 +327,8 @@ ALLOWED_TABLES = {
     "members", "tithes", "expenses", "converts", "beneficiaries",
     "events", "prayer_requests", "weekly_records", "transfers",
     "outreach", "ministry_meetings", "holy_ghost_baptisms",
-    "special_events", "scholarships", "users"
+    "special_events", "scholarships", "users",
+    "equipment", "maintenance"
 }
 
 def db_all(table, order="id DESC"):
