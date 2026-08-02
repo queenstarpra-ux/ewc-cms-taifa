@@ -243,7 +243,11 @@ def db_init():
         ('adminKey','COP2024TAIFA'),
         ('c1l',''), ('c1d','Tuesday'),
         ('c2l',''), ('c2d','Wednesday'),
-        ('c3l',''), ('c3d','Thursday');
+        ('c3l',''), ('c3d','Thursday'),
+        ('mtnName',''),('mtnNo',''),('mtnNote',''),
+        ('telName',''),('telNo',''),('telNote',''),
+        ('atName',''),('atNo',''),('atNote',''),
+        ('bankName',''),('bankNo',''),('bankAcct',''),('bankBranch','');
     """)
     c.commit()
     # Create default admin
@@ -326,12 +330,15 @@ def db_insert(table, data):
 
 def db_update(table, rid, data):
     data = {k: v for k, v in data.items() if k != "id"}
+    # Hash password if updating users table
+    if table == "users" and "password" in data:
+        data["password"] = _hash_pw(data["password"])
     if not data:
         return
     cols = list(data.keys())
     c = db_conn()
     c.execute(
-        f"UPDATE {table} SET {','.join(c+'=?' for c in cols)} WHERE id=?",
+        f"UPDATE {table} SET {','.join(col+'=?' for col in cols)} WHERE id=?",
         [data[k] for k in cols] + [rid])
     c.commit()
     c.close()

@@ -131,6 +131,15 @@ tr:hover td{background:#fafafa}
 .rank-card .rank-name{font-size:10.5px;font-weight:700;display:block;line-height:1.2}
 .rank-card .rank-desc{font-size:9px;opacity:0.75;display:block;margin-top:2px;line-height:1.2}
 @media print{.nb,#authWrap,.btn,.att-tog,.overlay,nav{display:none!important}.content{padding:0}}
+
+.pg-method:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.btn-xs{padding:4px 10px;font-size:11px}
+@media print{
+  .nb,.modal-h,.btn,.tabs,.sec-h,#pgSetupBanner{display:none!important}
+  .page{display:block!important}
+  .card{page-break-inside:avoid}
+}
+
 </style>
 </head>
 <body>
@@ -149,10 +158,43 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="auth-sect active" id="authLogin">
       <div class="auth-err" id="loginErr"></div>
-      <div class="fr"><label>Username</label><input id="loginUser" placeholder="Enter your username" autocomplete="username"></div>
-      <div class="fr"><label>Password</label><input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:6px" onclick="doLogin()">Sign in →</button>
-      <p style="font-size:11px;color:var(--tx3);text-align:center;margin-top:10px">First time? Click <strong style="cursor:pointer;color:var(--pr)" onclick="switchAuth('register')">Register</strong> to create an account.</p>
+
+      <div class="fr">
+        <label>Username</label>
+        <input id="loginUser" placeholder="Enter your username" autocomplete="username" oninput="loginClearErr()">
+      </div>
+      <div class="fr" style="position:relative">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="Enter your password"
+          autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()"
+          oninput="loginClearErr()">
+        <button type="button" onclick="togglePassVis('loginPass',this)"
+          style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;color:var(--tx2);font-size:14px;padding:0">👁</button>
+      </div>
+
+      <!-- Remember me row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--tx2);font-weight:400">
+          <input type="checkbox" id="rememberMe" style="width:15px;height:15px;cursor:pointer;accent-color:var(--pr)">
+          Remember me on this device
+        </label>
+        <span id="savedIndicator" style="font-size:10.5px;color:var(--gr);display:none">✅ Credentials saved</span>
+      </div>
+
+      <button class="btn btn-p" style="width:100%;justify-content:center" onclick="doLogin()">
+        Sign in →
+      </button>
+
+      <!-- Saved accounts quick-login -->
+      <div id="savedAccounts" style="display:none;margin-top:12px">
+        <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;text-align:center">— or sign in as —</div>
+        <div id="savedAccountsList"></div>
+      </div>
+
+      <p style="font-size:11px;color:var(--tx3);text-align:center;margin-top:12px">
+        First time? Click <strong style="cursor:pointer;color:var(--pr)" onclick="switchAuth('register')">Register</strong> to create an account.
+      </p>
     </div>
     <div class="auth-sect" id="authRegister">
       <div class="auth-err" id="regErr"></div>
@@ -162,8 +204,14 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="fr"><label>Username *</label><input id="regUser" placeholder="Choose a username"></div>
       <div class="fg">
-        <div class="fr"><label>Password *</label><input type="password" id="regPass" placeholder="Min. 6 characters"></div>
-        <div class="fr"><label>Confirm password *</label><input type="password" id="regPass2" placeholder="Repeat password"></div>
+        <div class="fr" style="position:relative"><label>Password *</label>
+          <input type="password" id="regPass" placeholder="Min. 6 characters" autocomplete="new-password">
+          <button type="button" onclick="togglePassVis('regPass',this)" style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;color:var(--tx2);font-size:14px;padding:0">👁</button>
+        </div>
+        <div class="fr" style="position:relative"><label>Confirm password *</label>
+          <input type="password" id="regPass2" placeholder="Repeat password" autocomplete="new-password">
+          <button type="button" onclick="togglePassVis('regPass2',this)" style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;color:var(--tx2);font-size:14px;padding:0">👁</button>
+        </div>
       </div>
       <div class="fg">
         <div class="fr"><label>Phone number</label><input id="regPh" placeholder="0244 000 000"></div>
@@ -206,6 +254,7 @@ tr:hover td{background:#fafafa}
     <button class="nb" onclick="showPage('members',this)">👥 Members</button>
     <button class="nb" onclick="showPage('checkin',this)">🔍 Mark Attendance</button>
     <button class="nb" onclick="showPage('attendance',this)">📅 Attendance Log</button>
+    <button class="nb" onclick="showPage('payment',this)">💳 Give / Pay</button>
     <button class="nb" onclick="showPage('tithes',this)">💰 Tithes</button>
     <button class="nb" onclick="showPage('expenses',this)">📤 Expenses</button>
     <button class="nb" onclick="showPage('finance',this)">📊 Finance</button>
@@ -396,6 +445,183 @@ tr:hover td{background:#fafafa}
 
 </div>
 </div>
+
+
+<!-- ===== PAYMENT GATEWAY PAGE ===== -->
+<div id="page-payment" class="page">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1a3a6b,#2d6a4f);border-radius:12px;padding:18px 20px;margin-bottom:16px;color:#fff;text-align:center">
+    <img src="https://image.pngaaa.com/448/4569448-middle.png" style="width:52px;height:52px;border-radius:50%;background:#fff;padding:3px;margin-bottom:8px" onerror="this.style.display='none'">
+    <div style="font-size:16px;font-weight:700">Church Payment Gateway</div>
+    <div style="font-size:11px;opacity:0.85;margin-top:3px" id="pgChurchName">Ebenezer Worship Centre — Taifa</div>
+    <div style="font-size:10px;opacity:0.7">The Church of Pentecost · Taifa District · Greater Accra</div>
+  </div>
+
+  <!-- Mobile Money Accounts Setup Banner (admin only) -->
+  <div id="pgSetupBanner" style="background:#fff3cd;border:1px solid #f5c842;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="font-size:12px;color:#856404"><strong>⚙️ Admin:</strong> Set up your Mobile Money accounts to enable payments</div>
+    <button class="btn btn-p btn-sm" onclick="document.getElementById('pgSetupModal').classList.add('open')">Configure accounts</button>
+  </div>
+
+  <!-- Payment type tabs -->
+  <div class="tabs" style="margin-bottom:14px">
+    <button class="tab active" onclick="pgTab('pay',this)">💳 Make a payment</button>
+    <button class="tab" onclick="pgTab('qr',this)">📱 QR codes</button>
+    <button class="tab" onclick="pgTab('history',this)">📋 Payment history</button>
+    <button class="tab" onclick="pgTab('accounts',this)">📱 MoMo accounts</button>
+  </div>
+
+  <!-- ── TAB 1: MAKE A PAYMENT ── -->
+  <div id="pgTabPay">
+
+    <!-- Amount + Category -->
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card">
+        <div class="card-title">💳 Payment details</div>
+
+        <div class="fr"><label>Payment type *</label>
+          <select id="pgCat" onchange="pgUpdateDesc()">
+            <option value="Tithe">Tithe</option>
+            <option value="Thanksgiving">Thanksgiving offering</option>
+            <option value="Building Fund">Building Fund</option>
+            <option value="Mission Fund">Mission Fund</option>
+            <option value="Welfare Fund">Welfare Fund</option>
+            <option value="Special Offering">Special offering</option>
+            <option value="Harvest">Harvest offering</option>
+            <option value="Convention">Convention levy</option>
+            <option value="Sunday Offering">Sunday offering</option>
+            <option value="Other">Other / General</option>
+          </select>
+        </div>
+
+        <div class="fr"><label>Amount (GH₵) *</label>
+          <input type="number" id="pgAmt" placeholder="0.00" min="1" step="0.01" oninput="pgUpdateQR()">
+        </div>
+
+        <!-- Quick amount buttons -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="font-size:11px;color:var(--tx2);width:100%">Quick select:</span>
+          <button class="btn btn-o btn-xs" onclick="pgSetAmt(10)">GH₵10</button>
+          <button class="btn btn-o btn-xs" onclick="pgSetAmt(20)">GH₵20</button>
+          <button class="btn btn-o btn-xs" onclick="pgSetAmt(50)">GH₵50</button>
+          <button class="btn btn-o btn-xs" onclick="pgSetAmt(100)">GH₵100</button>
+          <button class="btn btn-o btn-xs" onclick="pgSetAmt(200)">GH₵200</button>
+          <button class="btn btn-o btn-xs" onclick="pgSetAmt(500)">GH₵500</button>
+        </div>
+
+        <div class="fr"><label>Member name</label>
+          <input id="pgName" placeholder="Your full name">
+        </div>
+        <div class="fr"><label>Phone number</label>
+          <input id="pgPhone" type="tel" placeholder="0244 000 000">
+        </div>
+        <div class="fr"><label>Note / reference</label>
+          <input id="pgNote" placeholder="Optional note">
+        </div>
+      </div>
+
+      <!-- Payment methods -->
+      <div class="card">
+        <div class="card-title">📱 Choose payment method</div>
+
+        <!-- MTN MoMo -->
+        <div class="pg-method" id="pgMTN" onclick="pgSelect('mtn')" style="border:2px solid #eee;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.18s">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;border-radius:8px;background:#FFCC00;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📱</div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#333">MTN Mobile Money</div>
+              <div style="font-size:11px;color:#666" id="pgMTNNum">Loading...</div>
+            </div>
+            <div style="margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center" id="pgMTNCheck"></div>
+          </div>
+        </div>
+
+        <!-- Telecel -->
+        <div class="pg-method" id="pgTEL" onclick="pgSelect('telecel')" style="border:2px solid #eee;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.18s">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;border-radius:8px;background:#E30613;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📲</div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#333">Telecel Cash</div>
+              <div style="font-size:11px;color:#666" id="pgTELNum">Loading...</div>
+            </div>
+            <div style="margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center" id="pgTELCheck"></div>
+          </div>
+        </div>
+
+        <!-- AT Money -->
+        <div class="pg-method" id="pgAT" onclick="pgSelect('at')" style="border:2px solid #eee;border-radius:10px;padding:12px;margin-bottom:12px;cursor:pointer;transition:all 0.18s">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;border-radius:8px;background:#00529B;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💳</div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#333">AT Money</div>
+              <div style="font-size:11px;color:#666" id="pgATNum">Loading...</div>
+            </div>
+            <div style="margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center" id="pgATCheck"></div>
+          </div>
+        </div>
+
+        <!-- Pay instructions -->
+        <div id="pgInstructions" style="display:none;background:#f0fff4;border-radius:10px;border:1px solid #b2d8c4;padding:12px;margin-bottom:10px;font-size:12px;line-height:1.7"></div>
+
+        <!-- Action buttons -->
+        <button class="btn btn-wa" id="pgWhatsAppBtn" style="display:none;margin-bottom:7px" onclick="pgWhatsAppReceipt()">💬 Send receipt via WhatsApp</button>
+        <button class="btn btn-p" onclick="pgConfirmPayment()">✅ Confirm payment made</button>
+        <button class="btn btn-g btn-sm" style="margin-top:6px" onclick="pgOpenDialler()">📞 Open dialler to pay now</button>
+      </div>
+    </div>
+
+    <!-- QR code display for chosen method -->
+    <div class="card" id="pgQRCard" style="display:none;text-align:center">
+      <div class="card-title">📱 Scan to pay via Mobile Money</div>
+      <div id="pgQRDisplay" style="margin:10px auto;max-width:220px"></div>
+      <div id="pgQRLabel" style="font-size:12px;color:var(--tx2);margin-top:8px"></div>
+      <button class="btn btn-o btn-sm" style="margin-top:10px;max-width:200px;margin-left:auto;margin-right:auto" onclick="pgPrintQR()">🖨️ Print this QR</button>
+    </div>
+  </div>
+
+  <!-- ── TAB 2: QR CODES ── -->
+  <div id="pgTabQR" style="display:none">
+    <div class="g3" id="pgAllQRs"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">📄 Printable giving sheet</div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">Print and display at the entrance or on service bulletins so members can scan and give.</div>
+      <button class="btn btn-p" onclick="pgPrintAll()">🖨️ Print all QR codes</button>
+    </div>
+  </div>
+
+  <!-- ── TAB 3: PAYMENT HISTORY ── -->
+  <div id="pgTabHistory" style="display:none">
+    <div class="g4" id="pgHistStats" style="margin-bottom:14px"></div>
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span>📋 Recent payments</span>
+        <button class="btn btn-o btn-sm" onclick="pgExportHistory()">📥 Export CSV</button>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Date</th><th>Name</th><th>Type</th><th>Amount</th><th>Method</th><th>Ref</th><th>Status</th></tr></thead>
+        <tbody id="pgHistTable"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ── TAB 4: MOMO ACCOUNTS ── -->
+  <div id="pgTabAccounts" style="display:none">
+    <div class="g3" id="pgAccountCards"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">ℹ️ How to set up</div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.8">
+        <p>1. Go to <strong>Configure accounts</strong> above</p>
+        <p>2. Enter the church Mobile Money numbers for each network</p>
+        <p>3. Enter the account name (name registered on the MoMo)</p>
+        <p>4. QR codes are automatically generated for each account</p>
+        <p>5. Members scan the QR code to initiate payment directly</p>
+        <p>6. After paying, they click <strong>Confirm payment made</strong> to record in the system</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div id="page-tithes" class="page">
   <div class="g4" style="margin-bottom:12px" id="titheStats"></div>
@@ -745,10 +971,43 @@ tr:hover td{background:#fafafa}
 
 <div id="page-users" class="page">
   <div class="sec-h">
-    <h3 style="font-size:13px;font-weight:700;color:var(--pr)">System users &amp; access control</h3>
-    <button class="btn btn-p" onclick="document.getElementById('authWrap').style.display='flex';switchAuth('register')">+ Register new user</button>
+    <h3 style="font-size:13px;font-weight:700;color:var(--pr)">👥 System users &amp; access control</h3>
+    <button class="btn btn-p" onclick="openAddUserModal()">+ Add new user</button>
   </div>
-  <div class="tw"><table><thead><tr><th>#</th><th>Name</th><th>Username</th><th>Role</th><th>Phone</th><th>Email</th><th>Created</th><th>Actions</th></tr></thead><tbody id="userBody"></tbody></table></div>
+
+  <!-- Saved logins banner -->
+  <div id="savedLoginsBanner" style="background:linear-gradient(135deg,#1a3a6b,#2d6a4f);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div style="color:#fff">
+      <div style="font-size:12px;font-weight:700">🔑 Remembered logins on this device</div>
+      <div style="font-size:10.5px;opacity:0.85;margin-top:2px" id="savedLoginCount">Loading...</div>
+    </div>
+    <button class="btn btn-wa btn-sm" onclick="manageSavedAccountsDetailed()">Manage saved logins</button>
+  </div>
+
+  <!-- Users table -->
+  <div class="card">
+    <div class="card-title">All registered users</div>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Role</th><th>Phone</th><th>Email</th><th>Created</th><th>Saved?</th><th>Actions</th></tr></thead>
+      <tbody id="userBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Roles guide -->
+  <div class="g3" style="margin-top:12px">
+    <div class="card" style="border-top:3px solid #c0392b">
+      <div style="font-weight:700;color:#c0392b;margin-bottom:6px">🔴 Admin</div>
+      <div style="font-size:11px;color:var(--tx2);line-height:1.6">Full access to everything — add/delete members, manage finances, users, settings, all reports. Only give to pastor and senior administrator.</div>
+    </div>
+    <div class="card" style="border-top:3px solid #2d6a4f">
+      <div style="font-weight:700;color:#2d6a4f;margin-bottom:6px">🟢 Leader</div>
+      <div style="font-size:11px;color:var(--tx2);line-height:1.6">Can add members, record attendance, tithes, converts, weekly records. Cannot delete records or access user management.</div>
+    </div>
+    <div class="card" style="border-top:3px solid #1a3a6b">
+      <div style="font-weight:700;color:#1a3a6b;margin-bottom:6px">🔵 User</div>
+      <div style="font-size:11px;color:var(--tx2);line-height:1.6">View-only access to dashboards and reports. Cannot add, edit or delete any records.</div>
+    </div>
+  </div>
 </div>
 
 <div id="page-settings" class="page">
@@ -779,6 +1038,7 @@ tr:hover td{background:#fafafa}
           <button class="btn btn-o" onclick="document.getElementById('impFile').click()">📥 Import backup (JSON)</button>
           <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(event)">
           <button class="btn btn-o btn-sm" onclick="exportMembersCSV()">📥 Export members CSV</button>
+          <button class="btn btn-o btn-sm" onclick="manageSavedAccounts()">🔑 Manage saved logins</button>
           <button class="btn btn-r btn-sm" onclick="clearAll()">🗑️ Clear ALL data (reset)</button>
         </div>
         <p style="font-size:10px;color:var(--tx3);margin-top:8px">All data stored locally. Export regularly for backup. Install app on device for offline access.</p>
@@ -1316,25 +1576,122 @@ function switchAuth(tab){
   document.querySelectorAll('.auth-sect').forEach((s,i)=>s.classList.toggle('active',i===(tab==='login'?0:1)));
 }
 
+// ── Remember-me helpers ───────────────────────────────────────────
+const SAVED_KEY='ewc_saved_accounts';
+
+function loginClearErr(){
+  const e=document.getElementById('loginErr');if(e)e.classList.remove('show');
+}
+
+function togglePassVis(id,btn){
+  const el=document.getElementById(id);if(!el)return;
+  const show=el.type==='password';
+  el.type=show?'text':'password';
+  btn.textContent=show?'🙈':'👁';
+  el.focus();
+}
+
+function getSavedAccounts(){
+  try{return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]');}catch(e){return [];}
+}
+
+function saveCredentials(username, password, displayName){
+  const accounts=getSavedAccounts().filter(a=>a.username!==username);
+  // Simple reversible encode (not encryption — just obfuscation for UX)
+  const enc=btoa(unescape(encodeURIComponent(password)));
+  accounts.unshift({username, enc, displayName, saved:new Date().toISOString()});
+  localStorage.setItem(SAVED_KEY, JSON.stringify(accounts.slice(0,5))); // max 5 accounts
+}
+
+function removeCredential(username){
+  const accounts=getSavedAccounts().filter(a=>a.username!==username);
+  localStorage.setItem(SAVED_KEY, JSON.stringify(accounts));
+  renderSavedAccounts();
+}
+
+function renderSavedAccounts(){
+  const accounts=getSavedAccounts();
+  const panel=document.getElementById('savedAccounts');
+  const list=document.getElementById('savedAccountsList');
+  if(!panel||!list)return;
+  if(!accounts.length){panel.style.display='none';return;}
+  panel.style.display='block';
+  list.innerHTML=accounts.map(function(a){
+    const initials=(a.displayName||a.username).split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2,#f8f9fa);border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid var(--border,#e0e0e0)" onclick="loginAs(\''+a.username+'\',\''+a.enc+'\')">'+
+      '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a3a6b,#2d6a4f);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">'+initials+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:600;color:var(--tx,#212529)">'+a.displayName+'</div>'+
+        '<div style="font-size:10.5px;color:var(--tx2,#6c757d)">@'+a.username+' · tap to sign in</div>'+
+      '</div>'+
+      '<button onclick="event.stopPropagation();removeCredential(\''+a.username+'\')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:16px;padding:4px" title="Remove saved account">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function loginAs(username, enc){
+  try{
+    const pw=decodeURIComponent(escape(atob(enc)));
+    document.getElementById('loginUser').value=username;
+    document.getElementById('loginPass').value=pw;
+    document.getElementById('rememberMe').checked=true;
+    doLogin();
+  }catch(e){showToast('Could not retrieve saved password','error');}
+}
+
+function initLoginPage(){
+  // Restore saved accounts panel
+  renderSavedAccounts();
+  // If only 1 saved account, pre-fill the fields
+  const accounts=getSavedAccounts();
+  if(accounts.length===1){
+    const a=accounts[0];
+    document.getElementById('loginUser').value=a.username;
+    try{document.getElementById('loginPass').value=decodeURIComponent(escape(atob(a.enc)));}catch(e){}
+    document.getElementById('rememberMe').checked=true;
+    const ind=document.getElementById('savedIndicator');
+    if(ind)ind.style.display='block';
+  }
+}
+
+// ── Login function with remember-me ──────────────────────────────
 async function doLogin(){
   const u=document.getElementById('loginUser').value.trim();
   const p=document.getElementById('loginPass').value;
+  const remember=document.getElementById('rememberMe').checked;
   const err=document.getElementById('loginErr');
-  if(!u||!p){err.textContent='Please enter username and password';err.classList.add('show');return;}
+  if(!u||!p){err.textContent='Please enter your username and password';err.classList.add('show');return;}
   const btn=document.querySelector('#authLogin .btn-p');
   btn.textContent='Signing in…';btn.disabled=true;
-  try {
-    const res = await fetch(API_BASE+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    const data = await res.json();
-    if(!res.ok){err.textContent=data.error||'Invalid credentials';err.classList.add('show');btn.textContent='Sign in →';btn.disabled=false;return;}
-    AUTH_TOKEN = data.token;
-    currentUser = data.user;
-    localStorage.setItem('ewc_jwt', AUTH_TOKEN);
-    localStorage.setItem('ewc_user', JSON.stringify(currentUser));
+  try{
+    const res=await fetch(API_BASE+'/api/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u,password:p})
+    });
+    const data=await res.json();
+    if(!res.ok){
+      err.textContent=data.error||'Invalid username or password';
+      err.classList.add('show');
+      btn.textContent='Sign in →';btn.disabled=false;
+      return;
+    }
+    AUTH_TOKEN=data.token;
+    currentUser=data.user;
+    localStorage.setItem('ewc_jwt',AUTH_TOKEN);
+    localStorage.setItem('ewc_user',JSON.stringify(currentUser));
+    // ── Save credentials if remember me is checked ──
+    if(remember){
+      const displayName=(data.user.fn||'')+' '+(data.user.ln||'');
+      saveCredentials(u,p,displayName.trim()||u);
+      const ind=document.getElementById('savedIndicator');
+      if(ind)ind.style.display='block';
+    }
     err.classList.remove('show');
     bootApp();
-  } catch(e) {
-    err.textContent='Cannot connect to server. Make sure the server is running.';err.classList.add('show');
+  }catch(e){
+    err.textContent='Cannot connect to server. Make sure the server is running.';
+    err.classList.add('show');
     btn.textContent='Sign in →';btn.disabled=false;
   }
 }
@@ -1347,49 +1704,170 @@ async function doRegister(){
   const p2=document.getElementById('regPass2').value;
   const role=document.getElementById('regRole').value;
   const key=document.getElementById('regKey').value;
+  const ph=document.getElementById('regPh').value.trim();
+  const em=document.getElementById('regEm').value.trim();
   const err=document.getElementById('regErr');
+
+  // Validation
   if(!fn||!ln||!u||!p){err.textContent='Please fill all required fields';err.classList.add('show');return;}
   if(p.length<6){err.textContent='Password must be at least 6 characters';err.classList.add('show');return;}
   if(p!==p2){err.textContent='Passwords do not match';err.classList.add('show');return;}
-  try {
-    const res = await fetch(API_BASE+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn,ln,username:u,password:p,role,ph:document.getElementById('regPh').value,em:document.getElementById('regEm').value,adminKey:key})});
-    const data = await res.json();
-    if(!res.ok){err.textContent=data.error||'Registration failed';err.classList.add('show');return;}
-    showToast('Account created! You can now sign in. ✅');
-    err.classList.remove('show');
-    switchAuth('login');
-    document.getElementById('loginUser').value=u;
-  } catch(e) {
-    err.textContent='Cannot connect to server. Is the server running?';err.classList.add('show');
+  if(!/^[a-zA-Z0-9_.-]+$/.test(u)){err.textContent='Username may only contain letters, numbers, dots, dashes, underscores';err.classList.add('show');return;}
+
+  const btn=document.querySelector('#authRegister .btn-p');
+  btn.textContent='Creating account…';btn.disabled=true;
+
+  try{
+    // Step 1: Register account on server
+    const res=await fetch(API_BASE+'/api/register',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fn,ln,username:u,password:p,role,ph,em,adminKey:key})
+    });
+    const data=await res.json();
+    if(!res.ok){
+      err.textContent=data.error||'Registration failed';
+      err.classList.add('show');
+      btn.textContent='Create account →';btn.disabled=false;
+      return;
+    }
+
+    // Step 2: Auto-save credentials so user is remembered
+    const displayName=(fn+' '+ln).trim();
+    saveCredentials(u,p,displayName);
+
+    // Step 3: Auto-login immediately — no need to type again
+    const loginRes=await fetch(API_BASE+'/api/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u,password:p})
+    });
+    const loginData=await loginRes.json();
+
+    if(loginRes.ok && loginData.token){
+      AUTH_TOKEN=loginData.token;
+      currentUser=loginData.user;
+      localStorage.setItem('ewc_jwt',AUTH_TOKEN);
+      localStorage.setItem('ewc_user',JSON.stringify(currentUser));
+      err.classList.remove('show');
+      showToast('Welcome '+fn+'! Your account has been created and saved. ✅');
+      bootApp();
+    } else {
+      // Registration worked but auto-login failed — send to login page pre-filled
+      showToast('Account created! Your details have been saved. ✅');
+      err.classList.remove('show');
+      switchAuth('login');
+      document.getElementById('loginUser').value=u;
+      document.getElementById('loginPass').value=p;
+      document.getElementById('rememberMe').checked=true;
+      btn.textContent='Create account →';btn.disabled=false;
+    }
+  }catch(e){
+    err.textContent='Cannot connect to server. Is the server running?';
+    err.classList.add('show');
+    btn.textContent='Create account →';btn.disabled=false;
   }
 }
 
 async function bootApp(){
   document.getElementById('authWrap').style.display='none';
   document.getElementById('mainApp').style.display='flex';
-  document.getElementById('currentUserLbl').textContent=currentUser.fn+' ('+currentUser.role+')';
+  // Show user name and role in header
+  const displayName=(currentUser.fn||'')+(currentUser.ln?' '+currentUser.ln:'');
+  document.getElementById('currentUserLbl').textContent=displayName+' ('+currentUser.role+')';
   document.getElementById('hdrDate').textContent=today.toLocaleDateString('en-GH',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  // Keep JWT alive: refresh token expiry by re-storing
+  localStorage.setItem('ewc_jwt',AUTH_TOKEN);
+  localStorage.setItem('ewc_user',JSON.stringify(currentUser));
+  // Load all data and render
   await loadAll();
   renderDashboard();
   checkPendingRegistrations();
+  // Refresh session token silently every 12 hours
+  if(!window._tokenRefreshTimer){
+    window._tokenRefreshTimer=setInterval(async function(){
+      try{
+        const r=await fetch(API_BASE+'/api/login',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({username:currentUser.username,_refresh:AUTH_TOKEN})
+        });
+        if(r.ok){const d=await r.json();if(d.token){AUTH_TOKEN=d.token;localStorage.setItem('ewc_jwt',AUTH_TOKEN);}}
+      }catch(e){}
+    },12*60*60*1000);
+  }
 }
 
 function signOut(){
+  if(!confirm('Sign out of the EWC CMS?\n\nYour saved login details will be kept so you can sign back in quickly.'))return;
+  if(window._tokenRefreshTimer){clearInterval(window._tokenRefreshTimer);window._tokenRefreshTimer=null;}
   currentUser=null;AUTH_TOKEN='';
-  localStorage.removeItem('ewc_jwt');localStorage.removeItem('ewc_user');
+  localStorage.removeItem('ewc_jwt');
+  localStorage.removeItem('ewc_user');
   document.getElementById('mainApp').style.display='none';
   document.getElementById('authWrap').style.display='flex';
   document.getElementById('loginPass').value='';
+  setTimeout(initLoginPage,100);
+}
+
+function manageSavedAccounts(){
+  const accounts=getSavedAccounts();
+  if(!accounts.length){showToast('No saved logins on this device');return;}
+  const names=accounts.map(function(a,i){return (i+1)+'. '+a.displayName+' (@'+a.username+')';}).join('\n');
+  const action=confirm('Saved logins on this device:\n\n'+names+'\n\nClick OK to clear ALL saved logins, or Cancel to keep them.');
+  if(action){
+    localStorage.removeItem(SAVED_KEY);
+    showToast('All saved logins cleared ✅');
+  }
 }
 function showUserMenu(){ if(confirm('Sign out of the system?')) signOut(); }
 
-// Auto-login from stored token
+// Auto-login from stored token — keeps user signed in when online
 (function(){
-  const storedUser = localStorage.getItem('ewc_user');
+  const storedUser=localStorage.getItem('ewc_user');
   if(AUTH_TOKEN && storedUser){
-    try{ currentUser=JSON.parse(storedUser); bootApp(); return; }catch(e){}
+    try{
+      currentUser=JSON.parse(storedUser);
+      // Try to boot immediately with stored token
+      bootApp();
+      // Then silently verify token is still valid with server
+      fetch(API_BASE+'/api/dashboard',{headers:{Authorization:'Bearer '+AUTH_TOKEN}})
+        .then(function(r){
+          if(r.status===401){
+            // Token expired — try to auto-refresh using saved credentials
+            const accounts=getSavedAccounts();
+            if(accounts.length){
+              const saved=accounts[0];
+              try{
+                const pw=decodeURIComponent(escape(atob(saved.enc)));
+                fetch(API_BASE+'/api/login',{
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({username:saved.username,password:pw})
+                }).then(function(lr){
+                  if(lr.ok)lr.json().then(function(ld){
+                    if(ld.token){
+                      AUTH_TOKEN=ld.token;
+                      currentUser=ld.user;
+                      localStorage.setItem('ewc_jwt',AUTH_TOKEN);
+                      localStorage.setItem('ewc_user',JSON.stringify(currentUser));
+                      showToast('Session renewed automatically ✅');
+                    }
+                  });
+                });
+              }catch(ex){}
+            } else {
+              // No saved credentials — must sign in again
+              signOut();
+              showToast('Session expired — please sign in again','warn');
+            }
+          }
+        }).catch(function(){/* offline — stay logged in with cached token */});
+      return;
+    }catch(e){}
   }
   switchAuth('login');
+  setTimeout(initLoginPage,100);
 })();
 
 // ─── REGISTRATION LINK GENERATOR ──────────────────────────────────
@@ -1466,6 +1944,7 @@ function showPage(id,el){
     holyghostbap:async function(){await loadAll();renderHGBStats();renderHGB();},
     special:async function(){await loadAll();renderSpecial();},
     scholarships:async function(){await loadAll();renderScholStats();renderSchol();},
+    payment:async function(){await loadAll();initPaymentPage();},
     reports:function(){showReport('byrank',document.querySelector('#page-reports .tab'));},
     copreport:async function(){await loadAll();initCOPReport();renderCOPReport();},
     statsreport:async function(){await loadAll();initStatsReport();renderStatsReport();},
@@ -2475,10 +2954,46 @@ function exportRptCSV(){
 }
 
 function renderUsers(){
-  const users=DB.users;const tbody=document.getElementById('userBody');
-  if(!users.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><strong>No users registered</strong></div></td></tr>';return;}
+  const users=DB.users;
+  const tbody=document.getElementById('userBody');
+  if(!tbody)return;
+  const saved=getSavedAccounts();
+  const savedNames=saved.map(function(a){return a.username;});
+  // Update banner
+  const countEl=document.getElementById('savedLoginCount');
+  if(countEl){
+    countEl.textContent=saved.length?
+      saved.length+' user'+(saved.length===1?'':'s')+' saved on this device: '+saved.map(function(a){return a.displayName||a.username;}).join(', '):
+      'No logins saved on this device yet. Tick "Remember me" when signing in.';
+  }
+  if(!users.length){
+    tbody.innerHTML='<tr><td colspan="9"><div class="empty"><strong>No users yet.</strong><br>Click "+ Add new user" to create the first user.</div></td></tr>';
+    return;
+  }
   const rCl={admin:'role-admin',leader:'role-leader',user:'role-user'};
-  tbody.innerHTML=users.map(function(u,i){return '<tr><td>'+(i+1)+'</td><td>'+u.fn+' '+u.ln+'</td><td><strong>'+u.username+'</strong></td><td><span class="badge '+(rCl[u.role]||'bam')+'">'+u.role+'</span></td><td>'+(u.ph||'—')+'</td><td>'+(u.em||'—')+'</td><td style="font-size:10px;color:var(--tx3)">'+(u.created?u.created.split('T')[0]:'—')+'</td><td>'+(currentUser&&currentUser.role==='admin'&&u.id!==currentUser.id?'<button class="btn btn-r btn-xs" onclick="delUser(\''+u.id+'\')">🗑️</button>':'')+'</td></tr>';}).join('');
+  tbody.innerHTML=users.map(function(u,i){
+    const isSaved=savedNames.includes(u.username);
+    const isMe=currentUser&&(u.id===currentUser.id||u.username===currentUser.username);
+    const isAdmin=currentUser&&currentUser.role==='admin';
+    return '<tr style="'+(isMe?'background:#f0f4ff;':'')+'">' +
+      '<td style="color:var(--tx3)">'+(i+1)+'</td>'+
+      '<td><div style="font-weight:600;font-size:12px">'+u.fn+' '+u.ln+
+        (isMe?' <span style="font-size:9px;background:#1a3a6b;color:#fff;padding:1px 5px;border-radius:4px;margin-left:3px">YOU</span>':'')+
+      '</div></td>'+
+      '<td><code style="font-size:11px;background:#f8f9fa;padding:2px 6px;border-radius:4px">@'+u.username+'</code></td>'+
+      '<td><span class="badge '+(rCl[u.role]||'bam')+'" style="font-size:10px">'+u.role+'</span></td>'+
+      '<td style="font-size:11px">'+(u.ph||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+(u.em||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+(u.created?u.created.split('T')[0]:'—')+'</td>'+
+      '<td style="text-align:center">'+(isSaved?
+        '<span title="Login saved on this device" style="color:#2d6a4f;font-size:16px">✅</span>':
+        '<span title="Not saved" style="color:#ddd;font-size:14px">○</span>')+
+      '</td>'+
+      '<td style="white-space:nowrap">'+
+        (isAdmin?'<button class="btn btn-o btn-xs" style="margin-right:4px" onclick="openResetPass('+u.id+',\''+u.fn+' '+u.ln+'\',\''+u.username+'\')">🔑</button>':'')+
+        (isAdmin&&!isMe?'<button class="btn btn-r btn-xs" onclick="delUser('+u.id+')">🗑️</button>':'')+
+      '</td></tr>';
+  }).join('');
 }
 async function delUser(id){if(!confirm('Remove this user?'))return;const r=await del('users/'+id);if(r&&r.success){await loadAll();renderUsers();showToast('User removed','warn');}else showToast('Delete failed','error');}
 
@@ -3464,7 +3979,749 @@ if('serviceWorker' in navigator){
   const sw="const C='ewc-v2';self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll([location.href]))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match(e.request)))));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k))))));";
   const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(){});
 }
+
+// =====================================================================
+// PAYMENT GATEWAY — Full implementation
+// =====================================================================
+const PG_NETWORKS={
+  mtn:    {label:'MTN Mobile Money', color:'#FFCC00',tc:'#333',ussd:'*170#'},
+  telecel:{label:'Telecel Cash',     color:'#E30613',tc:'#fff',ussd:'*110#'},
+  at:     {label:'AT Money',         color:'#00529B',tc:'#fff',ussd:'*110#'}
+};
+let pgSelectedMethod=null;
+let pgPayments=[];
+let pgAccounts={};
+
+function pgLoadAccounts(){
+  try{pgPayments=JSON.parse(localStorage.getItem('ewc_payments')||'[]');}catch(e){pgPayments=[];}
+  pgAccounts={};
+  if(DB.cfg){
+    if(DB.cfg.mtnNo)    pgAccounts.mtn    ={name:DB.cfg.mtnName||'',number:DB.cfg.mtnNo,note:DB.cfg.mtnNote||''};
+    if(DB.cfg.telNo)    pgAccounts.telecel={name:DB.cfg.telName||'',number:DB.cfg.telNo,note:DB.cfg.telNote||''};
+    if(DB.cfg.atNo)     pgAccounts.at     ={name:DB.cfg.atName||'', number:DB.cfg.atNo, note:DB.cfg.atNote||''};
+    if(DB.cfg.bankNo)   pgAccounts.bank   ={bank:DB.cfg.bankName||'',number:DB.cfg.bankNo,name:DB.cfg.bankAcct||'',branch:DB.cfg.bankBranch||''};
+  }
+}
+
+function initPaymentPage(){
+  pgLoadAccounts();
+  pgUpdateMethodNumbers();
+  pgRenderAccountCards();
+  pgRenderAllQRs();
+  pgRenderHistory();
+  // Church name in header
+  const cfg=DB.cfg||{};
+  const el=document.getElementById('pgChurchName');
+  if(el)el.textContent=(cfg.name||'Ebenezer Worship Centre')+(cfg.district?' — '+cfg.district:'');
+  // Hide setup banner if accounts are already set
+  const banner=document.getElementById('pgSetupBanner');
+  if(banner)banner.style.display=(pgAccounts.mtn||pgAccounts.telecel||pgAccounts.at)?'none':'flex';
+  pgPrefillSetupModal();
+}
+
+function pgPrefillSetupModal(){
+  const a=pgAccounts;
+  function sv(id,v){const e=document.getElementById(id);if(e)e.value=v||'';}
+  if(a.mtn){sv('pgMTNName',a.mtn.name);sv('pgMTNNo',a.mtn.number);sv('pgMTNNote',a.mtn.note);}
+  if(a.telecel){sv('pgTELName',a.telecel.name);sv('pgTELNo',a.telecel.number);sv('pgTELNote',a.telecel.note);}
+  if(a.at){sv('pgATName',a.at.name);sv('pgATNo',a.at.number);sv('pgATNote',a.at.note);}
+  if(a.bank){sv('pgBankName',a.bank.bank);sv('pgBankNo',a.bank.number);sv('pgBankAcct',a.bank.name);sv('pgBankBranch',a.bank.branch);}
+}
+
+function pgUpdateMethodNumbers(){
+  function el(id,txt){const e=document.getElementById(id);if(e)e.textContent=txt;}
+  const a=pgAccounts;
+  el('pgMTNNum', a.mtn    ?a.mtn.name+' · '+a.mtn.number          :'Not configured — click Configure accounts');
+  el('pgTELNum', a.telecel?a.telecel.name+' · '+a.telecel.number   :'Not configured');
+  el('pgATNum',  a.at     ?a.at.name+' · '+a.at.number             :'Not configured');
+}
+
+async function pgSaveAccounts(){
+  function gv(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+  const cfgData={
+    mtnName:gv('pgMTNName'), mtnNo:gv('pgMTNNo'),  mtnNote:gv('pgMTNNote'),
+    telName:gv('pgTELName'), telNo:gv('pgTELNo'),   telNote:gv('pgTELNote'),
+    atName: gv('pgATName'),  atNo: gv('pgATNo'),    atNote: gv('pgATNote'),
+    bankName:gv('pgBankName'),bankNo:gv('pgBankNo'),bankAcct:gv('pgBankAcct'),bankBranch:gv('pgBankBranch')
+  };
+  const r=await put('config',cfgData);
+  if(r&&r.success){
+    Object.assign(DB.cfg,cfgData);
+    pgLoadAccounts();
+    pgUpdateMethodNumbers();
+    pgRenderAccountCards();
+    pgRenderAllQRs();
+    const banner=document.getElementById('pgSetupBanner');
+    if(banner)banner.style.display='none';
+    closeM('pgSetupModal');
+    showToast('Mobile Money accounts saved ✅');
+  } else {
+    showToast('Save failed — check connection','error');
+  }
+}
+
+function pgTab(tab,el){
+  document.querySelectorAll('#page-payment .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  ['Pay','QR','History','Accounts'].forEach(function(t){
+    const d=document.getElementById('pgTab'+t);
+    if(d)d.style.display=(t.toLowerCase()===tab)?'block':'none';
+  });
+  if(tab==='qr')pgRenderAllQRs();
+  if(tab==='history')pgRenderHistory();
+  if(tab==='accounts')pgRenderAccountCards();
+}
+
+function pgSelect(method){
+  pgSelectedMethod=method;
+  // Reset all cards
+  ['MTN','TEL','AT'].forEach(function(id){
+    const card=document.getElementById('pg'+id);
+    const chk=document.getElementById('pg'+id+'Check');
+    if(card){card.style.border='2px solid #eee';card.style.background='';}
+    if(chk){chk.style.background='';chk.style.borderColor='#ddd';chk.innerHTML='';}
+  });
+  // Highlight selected
+  const idMap={mtn:'MTN',telecel:'TEL',at:'AT'};
+  const colors={mtn:'#FFCC00',telecel:'#E30613',at:'#00529B'};
+  const sel=idMap[method];
+  if(sel){
+    const card=document.getElementById('pg'+sel);
+    const chk=document.getElementById('pg'+sel+'Check');
+    if(card){card.style.border='2px solid '+colors[method];card.style.background=colors[method]+'18';}
+    if(chk){chk.style.background=colors[method];chk.style.borderColor=colors[method];chk.innerHTML='<span style="color:#fff;font-size:10px;font-weight:700">✓</span>';}
+  }
+  pgShowInstructions(method);
+  pgUpdateQR();
+  const wabtn=document.getElementById('pgWhatsAppBtn');
+  if(wabtn)wabtn.style.display='flex';
+}
+
+function pgShowInstructions(method){
+  const acc=pgAccounts[method];
+  const amt=document.getElementById('pgAmt')?document.getElementById('pgAmt').value:'';
+  const cat=document.getElementById('pgCat')?document.getElementById('pgCat').value:'';
+  const panel=document.getElementById('pgInstructions');
+  if(!panel)return;
+  if(!acc||!acc.number){panel.style.display='none';return;}
+  const steps={
+    mtn:`<strong style="color:#E65100">📱 How to pay via MTN MoMo:</strong><br>
+      1. Dial <strong>*170#</strong> on your MTN phone<br>
+      2. Select <strong>1. Transfer Money → MoMo User</strong><br>
+      3. Enter number: <strong>${acc.number}</strong><br>
+      4. Enter amount: <strong>GH₵${amt||'___'}</strong><br>
+      5. Reference: <strong>${cat}</strong><br>
+      6. Enter your PIN and confirm`,
+    telecel:`<strong style="color:#B71C1C">📲 How to pay via Telecel Cash:</strong><br>
+      1. Dial <strong>*110#</strong> on your Telecel phone<br>
+      2. Select <strong>Send Money</strong><br>
+      3. Enter number: <strong>${acc.number}</strong><br>
+      4. Enter amount: <strong>GH₵${amt||'___'}</strong><br>
+      5. Reference: <strong>${cat}</strong><br>
+      6. Enter your PIN and confirm`,
+    at:`<strong style="color:#0D47A1">💳 How to pay via AT Money:</strong><br>
+      1. Dial <strong>*110#</strong> on your AirtelTigo phone<br>
+      2. Select <strong>Send Money</strong><br>
+      3. Enter number: <strong>${acc.number}</strong><br>
+      4. Enter amount: <strong>GH₵${amt||'___'}</strong><br>
+      5. Reference: <strong>${cat}</strong><br>
+      6. Enter your PIN and confirm`
+  };
+  panel.style.display='block';
+  panel.innerHTML=(steps[method]||'')+
+    `<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:6px;font-size:11.5px">
+      <strong>Account name:</strong> ${acc.name} &nbsp;·&nbsp;
+      <strong>Number:</strong> ${acc.number}
+      ${acc.note?'<br><em>'+acc.note+'</em>':''}
+    </div>`;
+}
+
+function pgUpdateDesc(){
+  if(pgSelectedMethod)pgShowInstructions(pgSelectedMethod);
+  pgUpdateQR();
+}
+
+function pgSetAmt(amt){
+  const el=document.getElementById('pgAmt');
+  if(el){el.value=amt;pgUpdateQR();if(pgSelectedMethod)pgShowInstructions(pgSelectedMethod);}
+}
+
+function pgUpdateQR(){
+  const method=pgSelectedMethod;
+  if(!method)return;
+  const acc=pgAccounts[method];
+  if(!acc||!acc.number)return;
+  const amt=document.getElementById('pgAmt')?document.getElementById('pgAmt').value:'';
+  const cat=document.getElementById('pgCat')?document.getElementById('pgCat').value:'Offering';
+  const qrData='MOMO:'+acc.number+'|'+acc.name+'|'+(amt||'')+'|'+cat;
+  pgGenQR('pgQRDisplay',qrData,PG_NETWORKS[method].label+'\n'+acc.number);
+  const card=document.getElementById('pgQRCard');
+  if(card)card.style.display='block';
+  const lbl=document.getElementById('pgQRLabel');
+  if(lbl)lbl.innerHTML='Scan to pay <strong>GH₵'+(amt||'?')+'</strong> via '+PG_NETWORKS[method].label+'<br>To: <strong>'+acc.name+'</strong> ('+acc.number+')';
+}
+
+function pgGenQR(containerId,data,label){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const size=180;
+  const url='https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(data)+'&format=svg&margin=3&color=1a3a6b';
+  el.innerHTML='<div style="border:3px solid #1a3a6b;border-radius:12px;padding:10px;background:#fff;display:inline-block">'+
+    '<img src="'+url+'" width="'+size+'" height="'+size+'" alt="QR Code" style="display:block;border-radius:4px">'+
+    (label?'<div style="text-align:center;font-size:10px;color:#1a3a6b;font-weight:700;margin-top:6px;max-width:'+size+'px;word-break:break-all">'+label+'</div>':'')+
+  '</div>';
+}
+
+function pgRenderAllQRs(){
+  pgLoadAccounts();
+  const container=document.getElementById('pgAllQRs');
+  if(!container)return;
+  const nets=[
+    {key:'mtn',    label:'MTN Mobile Money', color:'#FFCC00',tc:'#333'},
+    {key:'telecel',label:'Telecel Cash',      color:'#E30613',tc:'#fff'},
+    {key:'at',     label:'AT Money',          color:'#00529B',tc:'#fff'}
+  ];
+  let html='';
+  const churchName=(DB.cfg&&DB.cfg.name)||'Ebenezer Worship Centre';
+  nets.forEach(function(n){
+    const acc=pgAccounts[n.key];
+    html+='<div class="card" style="text-align:center;border-top:4px solid '+n.color+'">';
+    html+='<div style="background:'+n.color+';color:'+n.tc+';padding:7px 10px;border-radius:7px;margin-bottom:12px;font-size:12px;font-weight:700">'+n.label+'</div>';
+    if(acc&&acc.number){
+      const qrData='MOMO:'+acc.number+'|'+acc.name+'|AMOUNT|'+churchName;
+      const url='https://api.qrserver.com/v1/create-qr-code/?size=170x170&data='+encodeURIComponent(qrData)+'&format=svg&margin=3&color=1a3a6b';
+      html+='<div style="border:2px solid '+n.color+';border-radius:10px;padding:8px;background:#fff;display:inline-block;margin-bottom:8px">'+
+              '<img src="'+url+'" width="170" height="170" alt="'+n.label+' QR Code">'+
+            '</div>'+
+            '<div style="font-size:13px;font-weight:700;color:#1a3a6b;margin-top:4px">'+acc.name+'</div>'+
+            '<div style="font-size:13px;color:#555;letter-spacing:1px;font-weight:600">'+acc.number+'</div>'+
+            (acc.note?'<div style="font-size:11px;color:var(--tx2);margin-top:3px">'+acc.note+'</div>':'')+
+            '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Scan to pay · '+churchName+'</div>';
+    } else {
+      html+='<div style="padding:40px 10px;color:var(--tx3);font-size:12px">'+
+              '📱<br><br>Not configured<br><small>Go to <strong>Configure accounts</strong></small></div>';
+    }
+    html+='</div>';
+  });
+  // Bank account card
+  const bank=pgAccounts.bank;
+  if(bank&&bank.number){
+    html+='<div class="card" style="text-align:center;border-top:4px solid #6c3483">'+
+      '<div style="background:#6c3483;color:#fff;padding:7px 10px;border-radius:7px;margin-bottom:12px;font-size:12px;font-weight:700">🏦 Bank Account</div>'+
+      '<div style="font-size:13px;font-weight:700;color:#1a3a6b">'+bank.bank+'</div>'+
+      '<div style="font-size:12px;color:#555;margin-top:4px">Account no: <strong>'+bank.number+'</strong></div>'+
+      '<div style="font-size:12px;color:#555">Name: <strong>'+bank.name+'</strong></div>'+
+      (bank.branch?'<div style="font-size:11px;color:var(--tx2)">Branch: '+bank.branch+'</div>':'')+
+    '</div>';
+  }
+  container.innerHTML=html||'<div class="empty" style="grid-column:1/-1;padding:40px">No accounts configured yet.<br>Click <strong>Configure accounts</strong> above to set up.</div>';
+}
+
+function pgRenderAccountCards(){
+  pgLoadAccounts();
+  const container=document.getElementById('pgAccountCards');
+  if(!container)return;
+  const entries=[
+    {key:'mtn',    icon:'📱',label:'MTN Mobile Money', color:'#FFCC00'},
+    {key:'telecel',icon:'📲',label:'Telecel Cash',      color:'#E30613'},
+    {key:'at',     icon:'💳',label:'AT Money',          color:'#00529B'},
+    {key:'bank',   icon:'🏦',label:'Bank Account',      color:'#6c3483'}
+  ];
+  container.innerHTML=entries.map(function(e){
+    const acc=pgAccounts[e.key];
+    const ok=acc&&(acc.number||acc.bank);
+    const detail=ok?(e.key==='bank'?
+      acc.bank+' · '+acc.number+'<br>'+acc.name+(acc.branch?' · '+acc.branch:''):
+      acc.name+' · <strong>'+acc.number+'</strong>'+(acc.note?'<br><em>'+acc.note+'</em>':''))
+      :'Not configured yet';
+    return '<div class="card" style="border-left:4px solid '+e.color+'">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+        '<span style="font-size:22px">'+e.icon+'</span>'+
+        '<span style="font-weight:700;font-size:13px">'+e.label+'</span>'+
+        '<span class="badge '+(ok?'bact':'binact')+'" style="margin-left:auto">'+(ok?'✅ Active':'Not set')+'</span>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--tx2)">'+detail+'</div>'+
+      '<button class="btn btn-o btn-sm" style="margin-top:8px" onclick="document.getElementById(\'pgSetupModal\').classList.add(\'open\')">'+
+        (ok?'✏️ Edit':'⚙️ Configure')+'</button>'+
+    '</div>';
+  }).join('');
+}
+
+function pgRenderHistory(){
+  const tbody=document.getElementById('pgHistTable');
+  const statsEl=document.getElementById('pgHistStats');
+  if(!tbody)return;
+  pgLoadAccounts();
+
+  // Merge gateway payments + all system tithes
+  const srvPmts=DB.t.map(function(t){
+    const mem=DB.m.find(function(m){return m.id==t.mid;})||{fn:'',ln:''};
+    return {date:t.dt||'',name:((mem.fn+' '+mem.ln).trim())||'Anonymous',
+            cat:t.cat||'',amt:parseFloat(t.amt||0),method:t.mth||'Cash',ref:t.ref||'',status:'Confirmed'};
+  });
+  const allPmts=[...pgPayments,...srvPmts].sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+
+  // Stats
+  const total=allPmts.reduce(function(s,p){return s+parseFloat(p.amt||0);},0);
+  const momo=allPmts.filter(function(p){return /mtn|telecel|at money|mobile money|momo/i.test(p.method||'');}).reduce(function(s,p){return s+parseFloat(p.amt||0);},0);
+  const today7=new Date();today7.setDate(today7.getDate()-7);
+  const recent=allPmts.filter(function(p){return p.date>=today7.toISOString().split('T')[0];}).reduce(function(s,p){return s+parseFloat(p.amt||0);},0);
+
+  if(statsEl){
+    statsEl.innerHTML=
+      '<div class="stat"><div class="stat-n fin-income">GH₵'+fmt(total)+'</div><div class="stat-l">Total received</div></div>'+
+      '<div class="stat"><div class="stat-n" style="color:#FFCC00;text-shadow:0 0 2px #999">GH₵'+fmt(momo)+'</div><div class="stat-l">Via MoMo</div></div>'+
+      '<div class="stat"><div class="stat-n fin-income">GH₵'+fmt(recent)+'</div><div class="stat-l">Last 7 days</div></div>'+
+      '<div class="stat"><div class="stat-n">'+allPmts.length+'</div><div class="stat-l">Total transactions</div></div>';
+  }
+
+  if(!allPmts.length){
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty">No payments recorded yet</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML=allPmts.slice(0,60).map(function(p){
+    const methodBadge=p.method&&/mtn/i.test(p.method)?'<span style="background:#FFCC00;color:#333;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">MTN</span>':
+      p.method&&/telecel/i.test(p.method)?'<span style="background:#E30613;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">Telecel</span>':
+      p.method&&/at money|airteltigo/i.test(p.method)?'<span style="background:#00529B;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">AT</span>':
+      '<span style="background:#eee;color:#333;border-radius:4px;padding:1px 6px;font-size:10px">'+p.method+'</span>';
+    return '<tr>'+
+      '<td style="font-size:11px">'+p.date+'</td>'+
+      '<td><strong style="font-size:12px">'+p.name+'</strong></td>'+
+      '<td><span class="badge bc2" style="font-size:9px">'+p.cat+'</span></td>'+
+      '<td class="fin-income" style="font-weight:700">GH₵'+fmt(p.amt)+'</td>'+
+      '<td>'+methodBadge+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+p.ref+'</td>'+
+      '<td><span class="badge '+(p.status==='Confirmed'?'bact':'bam')+'" style="font-size:9px">'+p.status+'</span></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function pgExportHistory(){
+  pgLoadAccounts();
+  const rows=[['Date','Name','Type','Amount (GH₵)','Method','Reference','Status']];
+  const srvPmts=DB.t.map(function(t){
+    const mem=DB.m.find(function(m){return m.id==t.mid;})||{fn:'',ln:''};
+    return [t.dt||'',((mem.fn+' '+mem.ln).trim())||'Anonymous',t.cat||'',fmt(t.amt||0),t.mth||'Cash',t.ref||'','Confirmed'];
+  });
+  pgPayments.forEach(function(p){rows.push([p.date||'',p.name||'',p.cat||'',fmt(p.amt||0),p.method||'',p.ref||'',p.status||'']);});
+  srvPmts.forEach(function(r){rows.push(r);});
+  const csv=rows.map(function(r){return r.map(function(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='EWC_Payments_'+today.toISOString().split('T')[0]+'.csv';a.click();
+  showToast('Payments exported ✅');
+}
+
+async function pgConfirmPayment(){
+  const amt=parseFloat(document.getElementById('pgAmt').value);
+  const cat=document.getElementById('pgCat').value;
+  const name=document.getElementById('pgName').value.trim();
+  const phone=document.getElementById('pgPhone').value.trim();
+  const note=document.getElementById('pgNote').value.trim();
+  if(!amt||amt<=0){showToast('Enter a valid amount first','error');return;}
+  if(!pgSelectedMethod){showToast('Please select a payment method','error');return;}
+  const netLabel=PG_NETWORKS[pgSelectedMethod]?PG_NETWORKS[pgSelectedMethod].label:pgSelectedMethod;
+  const ref='PG-'+Date.now().toString().slice(-6);
+  const dateStr=today.toISOString().split('T')[0];
+
+  // Save to gateway local history
+  const payment={date:dateStr,name:name||'Anonymous',cat:cat,amt:amt,method:netLabel,ref:ref,phone:phone,note:note,status:'Confirmed'};
+  pgPayments.unshift(payment);
+  try{localStorage.setItem('ewc_payments',JSON.stringify(pgPayments.slice(0,500)));}catch(e){}
+
+  // Find member by phone number
+  const mem=DB.m.find(function(m){return m.ph===phone||m.ph2===phone;});
+
+  // Record to server tithes table
+  await post('tithes',{dt:dateStr,mid:mem?mem.id:0,cat:cat,amt:amt,mth:netLabel,rcv:name||'Anonymous',ref:ref,not_:note});
+  await loadAll();
+  pgRenderHistory();
+
+  // Receipt popup
+  const receipt=`✅ Payment Confirmed!\n\n`+
+    `Ref: ${ref}\nName: ${name||'Anonymous'}\nType: ${cat}\n`+
+    `Amount: GH₵${fmt(amt)}\nMethod: ${netLabel}\nDate: ${dateStr}`;
+  showToast('GH₵'+fmt(amt)+' '+cat+' confirmed & recorded ✅');
+
+  // Reset form
+  document.getElementById('pgAmt').value='';
+  document.getElementById('pgName').value='';
+  document.getElementById('pgPhone').value='';
+  document.getElementById('pgNote').value='';
+  document.getElementById('pgQRCard').style.display='none';
+}
+
+function pgWhatsAppReceipt(){
+  const method=pgSelectedMethod;
+  const amt=document.getElementById('pgAmt')?document.getElementById('pgAmt').value:'';
+  const cat=document.getElementById('pgCat')?document.getElementById('pgCat').value:'Offering';
+  const name=document.getElementById('pgName')?document.getElementById('pgName').value||'Member':'Member';
+  const phone=document.getElementById('pgPhone')?document.getElementById('pgPhone').value:'';
+  const acc=(method&&pgAccounts[method])||{name:'Church',number:''};
+  const churchName=(DB.cfg&&DB.cfg.name)||'Ebenezer Worship Centre';
+  const ref='PG-'+Date.now().toString().slice(-6);
+  const msg='🙏 *'+churchName+'*\n'+
+    '*━━━━━━━━━━━━━━━━━━━━━━*\n'+
+    '*PAYMENT RECEIPT*\n'+
+    '*━━━━━━━━━━━━━━━━━━━━━━*\n\n'+
+    '📋 Ref: *'+ref+'*\n'+
+    '📅 Date: *'+today.toLocaleDateString('en-GH',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'*\n'+
+    '👤 Name: *'+name+'*\n'+
+    '💰 Type: *'+cat+'*\n'+
+    '💵 Amount: *GH₵'+fmt(parseFloat(amt)||0)+'*\n'+
+    '📱 Method: *'+(method&&PG_NETWORKS[method]?PG_NETWORKS[method].label:method||'Mobile Money')+'*\n'+
+    '🏦 Paid to: *'+acc.name+'*'+(acc.number?' ('+acc.number+')':'')+'\n\n'+
+    '_"Bring the whole tithe into the storehouse..." — Malachi 3:10_\n\n'+
+    '_Thank you for your faithful giving. God bless you abundantly! 🙏_\n'+
+    '_— '+churchName+'_';
+  if(phone){
+    window.open(waLink(phone,msg),'_blank');
+  } else {
+    window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  }
+}
+
+function pgOpenDialler(){
+  if(!pgSelectedMethod){showToast('Select a payment method first','error');return;}
+  const ussd=PG_NETWORKS[pgSelectedMethod]?PG_NETWORKS[pgSelectedMethod].ussd:'*170#';
+  window.location.href='tel:'+ussd;
+}
+
+function pgPrintQR(){window.print();}
+function pgPrintAll(){window.print();}
+// =====================================================================
+// USER MANAGEMENT — Add user, reset password, saved credentials
+// =====================================================================
+function openAddUserModal(){
+  ['auFn','auLn','auPh','auEm','auUser','auPass','auPass2','auAdminKey'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  const role=document.getElementById('auRole');if(role)role.value='user';
+  const rem=document.getElementById('auRemember');if(rem)rem.checked=true;
+  const err=document.getElementById('auErr');if(err)err.style.display='none';
+  const bar=document.getElementById('auStrengthBar');if(bar){bar.style.width='0';bar.style.background='';}
+  const lbl=document.getElementById('auStrengthLbl');if(lbl)lbl.textContent='';
+  const adminRow=document.getElementById('auAdminKeyRow');if(adminRow)adminRow.style.display='none';
+  document.getElementById('mAddUser').classList.add('open');
+}
+
+function auCheckUsername(){
+  const u=document.getElementById('auUser').value.trim();
+  const st=document.getElementById('auUserStatus');
+  if(!st)return;
+  if(!u){st.textContent='';return;}
+  if(!/^[a-zA-Z0-9_.-]+$/.test(u)){
+    st.textContent='⚠️ Only letters, numbers, dots, dashes and underscores allowed';
+    st.style.color='#c0392b';return;
+  }
+  const taken=DB.users.some(function(x){return x.username===u;});
+  if(taken){st.textContent='❌ Username already taken';st.style.color='#c0392b';}
+  else{st.textContent='✅ Username available';st.style.color='#2d6a4f';}
+}
+
+// Show admin key field when admin role selected
+(function(){
+  document.addEventListener('change',function(e){
+    if(e.target&&e.target.id==='auRole'){
+      const row=document.getElementById('auAdminKeyRow');
+      if(row)row.style.display=e.target.value==='admin'?'block':'none';
+    }
+  });
+})();
+
+function pwStrength(pw){
+  let score=0;
+  if(pw.length>=6)score++;
+  if(pw.length>=10)score++;
+  if(/[A-Z]/.test(pw))score++;
+  if(/[0-9]/.test(pw))score++;
+  if(/[^A-Za-z0-9]/.test(pw))score++;
+  return score;
+}
+function auStrength(){
+  const pw=(document.getElementById('auPass')||{value:''}).value;
+  const score=pwStrength(pw);
+  const bar=document.getElementById('auStrengthBar');
+  const lbl=document.getElementById('auStrengthLbl');
+  const levels=[{w:'0%',bg:'',t:''},{w:'20%',bg:'#e74c3c',t:'Very weak'},{w:'40%',bg:'#e67e22',t:'Weak'},
+    {w:'60%',bg:'#f1c40f',t:'Fair'},{w:'80%',bg:'#2ecc71',t:'Strong'},{w:'100%',bg:'#27ae60',t:'Very strong ✅'}];
+  const l=levels[Math.min(score,5)];
+  if(bar){bar.style.width=l.w;bar.style.background=l.bg;}
+  if(lbl){lbl.textContent=l.t;lbl.style.color=l.bg;}
+}
+function rpStrength(){
+  const pw=(document.getElementById('rpPass')||{value:''}).value;
+  const score=pwStrength(pw);
+  const bar=document.getElementById('rpStrengthBar');
+  const ws=['0%','20%','40%','60%','80%','100%'];
+  const bs=['#e74c3c','#e74c3c','#e67e22','#f1c40f','#2ecc71','#27ae60'];
+  if(bar){bar.style.width=ws[Math.min(score,5)];bar.style.background=bs[Math.min(score,5)];}
+}
+
+async function addUserFromAdmin(){
+  const fn=(document.getElementById('auFn')||{value:''}).value.trim();
+  const ln=(document.getElementById('auLn')||{value:''}).value.trim();
+  const u=(document.getElementById('auUser')||{value:''}).value.trim();
+  const p=(document.getElementById('auPass')||{value:''}).value;
+  const p2=(document.getElementById('auPass2')||{value:''}).value;
+  const role=(document.getElementById('auRole')||{value:'user'}).value;
+  const key=(document.getElementById('auAdminKey')||{value:''}).value;
+  const remember=(document.getElementById('auRemember')||{checked:true}).checked;
+  const err=document.getElementById('auErr');
+  const btn=document.getElementById('auSubmitBtn');
+
+  const errors=[];
+  if(!fn||!ln)errors.push('First and last name are required');
+  if(!u)errors.push('Username is required');
+  else if(!/^[a-zA-Z0-9_.-]+$/.test(u))errors.push('Username has invalid characters');
+  else if(DB.users.some(function(x){return x.username===u;}))errors.push('Username already taken');
+  if(!p)errors.push('Password is required');
+  else if(p.length<6)errors.push('Password must be at least 6 characters');
+  if(p!==p2)errors.push('Passwords do not match');
+  if(role==='admin'&&!key)errors.push('Admin registration key required for admin accounts');
+
+  if(errors.length){if(err){err.textContent=errors[0];err.style.display='block';}return;}
+  if(err)err.style.display='none';
+  if(btn){btn.textContent='Creating…';btn.disabled=true;}
+
+  try{
+    const res=await fetch(API_BASE+'/api/register',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fn,ln,username:u,password:p,role,
+        ph:(document.getElementById('auPh')||{value:''}).value.trim(),
+        em:(document.getElementById('auEm')||{value:''}).value.trim(),
+        adminKey:key})
+    });
+    const data=await res.json();
+    if(!res.ok){
+      if(err){err.textContent=data.error||'Failed to create user';err.style.display='block';}
+      if(btn){btn.textContent='✅ Create user & save login';btn.disabled=false;}
+      return;
+    }
+    // Auto-save credentials
+    if(remember){
+      saveCredentials(u,p,(fn+' '+ln).trim());
+      showToast('User '+fn+' created and login saved ✅');
+    }else{
+      showToast('User '+fn+' created ✅');
+    }
+    closeM('mAddUser');
+    await loadAll();renderUsers();
+    if(btn){btn.textContent='✅ Create user & save login';btn.disabled=false;}
+  }catch(e){
+    if(err){err.textContent='Cannot connect to server';err.style.display='block';}
+    if(btn){btn.textContent='✅ Create user & save login';btn.disabled=false;}
+  }
+}
+
+function openResetPass(id,name,username){
+  document.getElementById('rpUserId').value=id;
+  const nm=document.getElementById('rpUserName');
+  if(nm){nm.textContent='Resetting password for: '+name+' (@'+username+')';nm.dataset.username=username;}
+  const p=document.getElementById('rpPass');if(p)p.value='';
+  const p2=document.getElementById('rpPass2');if(p2)p2.value='';
+  const er=document.getElementById('rpErr');if(er)er.style.display='none';
+  const bar=document.getElementById('rpStrengthBar');if(bar){bar.style.width='0';bar.style.background='';}
+  document.getElementById('mResetPass').classList.add('open');
+}
+
+async function resetUserPassword(){
+  const id=(document.getElementById('rpUserId')||{value:''}).value;
+  const p=(document.getElementById('rpPass')||{value:''}).value;
+  const p2=(document.getElementById('rpPass2')||{value:''}).value;
+  const remember=(document.getElementById('rpRemember')||{checked:true}).checked;
+  const username=(document.getElementById('rpUserName')||{dataset:{}}).dataset.username||'';
+  const err=document.getElementById('rpErr');
+
+  if(!p||p.length<6){if(err){err.textContent='Password must be at least 6 characters';err.style.display='block';}return;}
+  if(p!==p2){if(err){err.textContent='Passwords do not match';err.style.display='block';}return;}
+  if(err)err.style.display='none';
+
+  const r=await put('users/'+id,{password:p});
+  if(r&&r.success){
+    if(remember&&username){
+      const existing=getSavedAccounts().find(function(a){return a.username===username;});
+      if(existing){
+        saveCredentials(username,p,existing.displayName||username);
+        showToast('Password updated and saved login refreshed ✅');
+      }else{showToast('Password updated ✅');}
+    }else{showToast('Password updated ✅');}
+    closeM('mResetPass');await loadAll();renderUsers();
+  }else{
+    if(err){err.textContent='Failed to update password';err.style.display='block';}
+  }
+}
+
+function manageSavedAccountsDetailed(){
+  const accounts=getSavedAccounts();
+  if(!accounts.length){showToast('No saved logins on this device yet');return;}
+  const names=accounts.map(function(a,i){
+    return (i+1)+'. '+a.displayName+' (@'+a.username+')  saved: '+new Date(a.saved).toLocaleDateString();
+  }).join('\n');
+  const action=confirm('Saved logins on this device ('+accounts.length+'):\n\n'+names+'\n\n─────────────────────\nOK to CLEAR ALL saved logins\nCancel to keep them');
+  if(action){localStorage.removeItem(SAVED_KEY);showToast('All saved logins cleared');renderUsers();}
+}
+
+
+
 </script>
+
+<!-- ===== PAYMENT GATEWAY SETUP MODAL ===== -->
+<div class="overlay" id="pgSetupModal">
+<div class="modal">
+  <div class="modal-h">
+    <span>⚙️ Configure Mobile Money accounts</span>
+    <button class="btn btn-o btn-sm" onclick="closeM('pgSetupModal')">✕</button>
+  </div>
+  <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">Enter the church's Mobile Money numbers. These are used to generate QR codes and payment instructions for members.</p>
+
+  <!-- MTN -->
+  <div style="background:#FFFDE7;border:1px solid #FFCC00;border-radius:10px;padding:14px;margin-bottom:10px">
+    <div style="font-size:13px;font-weight:700;color:#E65100;margin-bottom:10px">📱 MTN Mobile Money</div>
+    <div class="fg">
+      <div class="fr"><label>Account name *</label><input id="pgMTNName" placeholder="Name on MTN MoMo account"></div>
+      <div class="fr"><label>MTN number *</label><input id="pgMTNNo" placeholder="024XXXXXXX" type="tel"></div>
+    </div>
+    <div class="fr"><label>Notes / instructions for members</label><input id="pgMTNNote" placeholder="e.g. Church Building Account"></div>
+  </div>
+
+  <!-- Telecel -->
+  <div style="background:#FFF5F5;border:1px solid #E30613;border-radius:10px;padding:14px;margin-bottom:10px">
+    <div style="font-size:13px;font-weight:700;color:#B71C1C;margin-bottom:10px">📲 Telecel Cash (Vodafone)</div>
+    <div class="fg">
+      <div class="fr"><label>Account name</label><input id="pgTELName" placeholder="Name on Telecel account"></div>
+      <div class="fr"><label>Telecel number</label><input id="pgTELNo" placeholder="050XXXXXXX" type="tel"></div>
+    </div>
+    <div class="fr"><label>Notes</label><input id="pgTELNote" placeholder="Optional notes"></div>
+  </div>
+
+  <!-- AT Money -->
+  <div style="background:#E3F2FD;border:1px solid #00529B;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:700;color:#0D47A1;margin-bottom:10px">💳 AT Money (AirtelTigo)</div>
+    <div class="fg">
+      <div class="fr"><label>Account name</label><input id="pgATName" placeholder="Name on AT Money account"></div>
+      <div class="fr"><label>AT number</label><input id="pgATNo" placeholder="027XXXXXXX" type="tel"></div>
+    </div>
+    <div class="fr"><label>Notes</label><input id="pgATNote" placeholder="Optional notes"></div>
+  </div>
+
+  <!-- Bank account -->
+  <div style="background:#F3E5F5;border:1px solid #6c3483;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:700;color:#4A148C;margin-bottom:10px">🏦 Bank account (optional)</div>
+    <div class="fg">
+      <div class="fr"><label>Bank name</label><input id="pgBankName" placeholder="e.g. GCB Bank"></div>
+      <div class="fr"><label>Account number</label><input id="pgBankNo" placeholder="Account number"></div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>Account name</label><input id="pgBankAcct" placeholder="Name on account"></div>
+      <div class="fr"><label>Branch</label><input id="pgBankBranch" placeholder="Branch name"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="btn btn-o" onclick="closeM('pgSetupModal')">Cancel</button>
+    <button class="btn btn-p" onclick="pgSaveAccounts()">💾 Save accounts</button>
+  </div>
+</div>
+</div>
+
+
+<!-- ===== ADD USER MODAL ===== -->
+<div class="overlay" id="mAddUser">
+<div class="modal">
+  <div class="modal-h">
+    <span>👤 Add new user</span>
+    <button class="btn btn-o btn-sm" onclick="closeM('mAddUser')">✕</button>
+  </div>
+
+  <div style="background:#f0f4ff;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11.5px;color:#1a3a6b;line-height:1.6">
+    <strong>🔑 Auto-remember:</strong> After creating this user, their login will be saved automatically so they can sign in with one tap on any device they use.
+  </div>
+
+  <div class="fg">
+    <div class="fr"><label>First name *</label><input id="auFn" placeholder="First name"></div>
+    <div class="fr"><label>Last name *</label><input id="auLn" placeholder="Last name"></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Phone number</label><input id="auPh" placeholder="0244 000 000" type="tel"></div>
+    <div class="fr"><label>Email address</label><input id="auEm" placeholder="email@example.com" type="email"></div>
+  </div>
+  <div class="fr"><label>Username * <span style="font-size:10px;color:var(--tx3)">(letters, numbers, dots only — no spaces)</span></label>
+    <input id="auUser" placeholder="e.g. kwame.asante" oninput="auCheckUsername()">
+    <div id="auUserStatus" style="font-size:10.5px;margin-top:3px"></div>
+  </div>
+  <div class="fr"><label>Role *</label>
+    <select id="auRole">
+      <option value="user">User (view only)</option>
+      <option value="leader">Leader (add/edit records)</option>
+      <option value="admin">Admin (full access)</option>
+    </select>
+  </div>
+  <div id="auAdminKeyRow" class="fr" style="display:none">
+    <label>Admin registration key *</label>
+    <input id="auAdminKey" type="password" placeholder="Required to create admin accounts">
+  </div>
+  <div class="fr" style="position:relative"><label>Password * <span style="font-size:10px;color:var(--tx3)">(min. 6 characters)</span></label>
+    <input type="password" id="auPass" placeholder="Create a strong password" oninput="auStrength()">
+    <button type="button" onclick="togglePassVis('auPass',this)" style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--tx2);padding:0">👁</button>
+  </div>
+  <!-- Password strength bar -->
+  <div style="margin-bottom:10px">
+    <div style="height:4px;background:#e9ecef;border-radius:2px;overflow:hidden">
+      <div id="auStrengthBar" style="height:100%;width:0%;transition:all 0.3s;border-radius:2px"></div>
+    </div>
+    <div id="auStrengthLbl" style="font-size:10px;color:var(--tx3);margin-top:2px"></div>
+  </div>
+  <div class="fr" style="position:relative"><label>Confirm password *</label>
+    <input type="password" id="auPass2" placeholder="Repeat password">
+    <button type="button" onclick="togglePassVis('auPass2',this)" style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--tx2);padding:0">👁</button>
+  </div>
+  <div class="fr" style="background:#f8f9fa;border-radius:8px;padding:10px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:400">
+      <input type="checkbox" id="auRemember" checked style="width:15px;height:15px;accent-color:var(--pr)">
+      <span>Save this user's login so they can sign in with one tap</span>
+    </label>
+  </div>
+  <div id="auErr" style="color:#c0392b;font-size:11.5px;margin-top:6px;display:none"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)">
+    <button class="btn btn-o" onclick="closeM('mAddUser')">Cancel</button>
+    <button class="btn btn-p" id="auSubmitBtn" onclick="addUserFromAdmin()">✅ Create user &amp; save login</button>
+  </div>
+</div></div>
+
+<!-- ===== RESET PASSWORD MODAL ===== -->
+<div class="overlay" id="mResetPass">
+<div class="modal" style="max-width:420px">
+  <div class="modal-h">
+    <span>🔑 Reset password</span>
+    <button class="btn btn-o btn-sm" onclick="closeM('mResetPass')">✕</button>
+  </div>
+  <input type="hidden" id="rpUserId">
+  <div id="rpUserName" style="font-size:14px;font-weight:600;color:var(--pr);margin-bottom:14px;padding:10px;background:#f0f4ff;border-radius:8px"></div>
+  <div class="fr" style="position:relative"><label>New password *</label>
+    <input type="password" id="rpPass" placeholder="New password (min. 6 characters)" oninput="rpStrength()">
+    <button type="button" onclick="togglePassVis('rpPass',this)" style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--tx2);padding:0">👁</button>
+  </div>
+  <div style="height:4px;background:#e9ecef;border-radius:2px;margin-bottom:10px;overflow:hidden">
+    <div id="rpStrengthBar" style="height:100%;width:0%;transition:all 0.3s;border-radius:2px"></div>
+  </div>
+  <div class="fr" style="position:relative"><label>Confirm new password *</label>
+    <input type="password" id="rpPass2" placeholder="Repeat new password">
+    <button type="button" onclick="togglePassVis('rpPass2',this)" style="position:absolute;right:10px;bottom:9px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--tx2);padding:0">👁</button>
+  </div>
+  <div class="fr" style="background:#f8f9fa;border-radius:8px;padding:10px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:400">
+      <input type="checkbox" id="rpRemember" checked style="width:15px;height:15px;accent-color:var(--pr)">
+      <span>Update saved login with new password</span>
+    </label>
+  </div>
+  <div id="rpErr" style="color:#c0392b;font-size:11.5px;margin-top:6px;display:none"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)">
+    <button class="btn btn-o" onclick="closeM('mResetPass')">Cancel</button>
+    <button class="btn btn-p" onclick="resetUserPassword()">🔑 Update password</button>
+  </div>
+</div></div>
+
 </body>
 </html>
 
