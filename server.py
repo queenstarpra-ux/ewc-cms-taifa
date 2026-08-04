@@ -73,6 +73,7 @@ def db_init():
         cat TEXT DEFAULT '', amt REAL DEFAULT 0,
         mth TEXT DEFAULT 'Cash', rcv TEXT DEFAULT '',
         ref TEXT DEFAULT '', not_ TEXT DEFAULT '',
+        assembly TEXT DEFAULT 'English',
         created TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS expenses (
@@ -272,6 +273,104 @@ def db_init():
         ('bankName',''),('bankNo',''),('bankAcct',''),('bankBranch','');
     """)
     c.commit()
+
+    # ══════════════════════════════════════════════════════════════════
+    # SAFE MIGRATIONS — runs on EVERY startup
+    # ══════════════════════════════════════════════════════════════════
+    # Rule: NEVER drops tables, NEVER deletes data.
+    # ALTER TABLE ADD COLUMN is non-destructive — if column exists,
+    # SQLite raises OperationalError which we silently catch and skip.
+    # This means you can deploy a new server.py at any time without
+    # losing any existing data in the database.
+    # ══════════════════════════════════════════════════════════════════
+    _safe_migrations = [
+        # tithes — assembly support (Akan / English)
+        "ALTER TABLE tithes ADD COLUMN assembly TEXT DEFAULT 'English'",
+
+        # members — extra fields added over time
+        "ALTER TABLE members ADD COLUMN registration_source TEXT DEFAULT 'admin'",
+        "ALTER TABLE members ADD COLUMN photo TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN updated TEXT DEFAULT (datetime('now'))",
+        "ALTER TABLE members ADD COLUMN ph2 TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN em TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN nokN TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN nokP TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN nokR TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN ecn TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN ecp TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN ecr TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN nid TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN gps TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN ht TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN emp TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN hgb TEXT DEFAULT 'No'",
+        "ALTER TABLE members ADD COLUMN rank TEXT DEFAULT 'Member'",
+        "ALTER TABLE members ADD COLUMN nts TEXT DEFAULT ''",
+
+        # expenses — budget tracking
+        "ALTER TABLE expenses ADD COLUMN fund TEXT DEFAULT 'General Fund'",
+        "ALTER TABLE expenses ADD COLUMN budg REAL DEFAULT 0",
+        "ALTER TABLE expenses ADD COLUMN nts TEXT DEFAULT ''",
+        "ALTER TABLE expenses ADD COLUMN vph TEXT DEFAULT ''",
+        "ALTER TABLE expenses ADD COLUMN memId INTEGER DEFAULT 0",
+        "ALTER TABLE expenses ADD COLUMN appr TEXT DEFAULT ''",
+        "ALTER TABLE expenses ADD COLUMN rec TEXT DEFAULT ''",
+
+        # equipment — added later
+        "ALTER TABLE equipment ADD COLUMN updated TEXT DEFAULT (datetime('now'))",
+        "ALTER TABLE equipment ADD COLUMN receipt TEXT DEFAULT ''",
+        "ALTER TABLE equipment ADD COLUMN warranty TEXT DEFAULT ''",
+        "ALTER TABLE equipment ADD COLUMN lastSvc TEXT DEFAULT ''",
+        "ALTER TABLE equipment ADD COLUMN nextSvc TEXT DEFAULT ''",
+
+        # maintenance — added later
+        "ALTER TABLE maintenance ADD COLUMN notes TEXT DEFAULT ''",
+
+        # converts — extra follow-up fields
+        "ALTER TABLE converts ADD COLUMN prev TEXT DEFAULT ''",
+        "ALTER TABLE converts ADD COLUMN fuby TEXT DEFAULT ''",
+        "ALTER TABLE converts ADD COLUMN bapdx TEXT DEFAULT ''",
+
+        # transfers — extra fields
+        "ALTER TABLE transfers ADD COLUMN from_assembly TEXT DEFAULT ''",
+        "ALTER TABLE transfers ADD COLUMN to_assembly TEXT DEFAULT ''",
+        "ALTER TABLE transfers ADD COLUMN recBy TEXT DEFAULT ''",
+
+        # weekly_records — extra metrics
+        "ALTER TABLE weekly_records ADD COLUMN svcType TEXT DEFAULT ''",
+        "ALTER TABLE weekly_records ADD COLUMN preacher TEXT DEFAULT ''",
+        "ALTER TABLE weekly_records ADD COLUMN youth INTEGER DEFAULT 0",
+        "ALTER TABLE weekly_records ADD COLUMN visitors INTEGER DEFAULT 0",
+        "ALTER TABLE weekly_records ADD COLUMN welfare REAL DEFAULT 0",
+        "ALTER TABLE weekly_records ADD COLUMN health REAL DEFAULT 0",
+        "ALTER TABLE weekly_records ADD COLUMN educ REAL DEFAULT 0",
+        "ALTER TABLE weekly_records ADD COLUMN donate REAL DEFAULT 0",
+        "ALTER TABLE weekly_records ADD COLUMN schol REAL DEFAULT 0",
+
+        # member_registrations — review tracking
+        "ALTER TABLE member_registrations ADD COLUMN reviewed_by TEXT DEFAULT ''",
+        "ALTER TABLE member_registrations ADD COLUMN photo TEXT DEFAULT ''",
+
+        # users — extra profile fields
+        "ALTER TABLE users ADD COLUMN ph TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN em TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN created TEXT DEFAULT (datetime('now'))",
+    ]
+
+    mig_ok = 0
+    mig_skip = 0
+    for sql in _safe_migrations:
+        try:
+            c.execute(sql)
+            c.commit()
+            mig_ok += 1
+        except Exception:
+            mig_skip += 1  # Column already exists — completely safe
+
+    if mig_ok > 0:
+        print(f"  ✅ Applied {mig_ok} database migrations ({mig_skip} already existed)")
+
     # Create default admin
     row = c.execute("SELECT id FROM users WHERE role='admin'").fetchone()
     if not row:

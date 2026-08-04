@@ -717,16 +717,144 @@ tr:hover td{background:#fafafa}
 </div>
 
 <div id="page-tithes" class="page">
-  <div class="g4" style="margin-bottom:12px" id="titheStats"></div>
-  <div class="sec-h">
-    <div style="display:flex;gap:7px;flex-wrap:wrap">
-      <select id="tMonF" onchange="renderTithes()" style="width:auto"><option value="">All time</option></select>
-      <select id="tCatF" onchange="renderTithes()" style="width:auto"><option value="">All categories</option><option>Tithe</option><option>Thanksgiving</option><option>Welfare Fund</option><option>Building Fund</option><option>Mission Fund</option><option>Special Offering</option><option>Harvest</option><option>Convention</option></select>
-      <select id="tMemF" onchange="renderTithes()" style="width:auto"><option value="">All members</option></select>
+
+  <!-- Language / Assembly toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--tx2);font-weight:600">Assembly:</span>
+      <div style="display:flex;border:1.5px solid var(--pr);border-radius:8px;overflow:hidden">
+        <button class="asm-btn active" id="asmEng" onclick="setAssembly('english',this)" style="padding:5px 14px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#1a3a6b;color:#fff">🇬🇧 English</button>
+        <button class="asm-btn" id="asmAkan" onclick="setAssembly('akan',this)" style="padding:5px 14px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#fff;color:#1a3a6b">🇬🇭 Akan</button>
+      </div>
+      <span id="asmLabel" style="font-size:11px;color:var(--tx2)">Recording for English Assembly</span>
     </div>
-    <button class="btn btn-p" onclick="openAddTithe()">+ Record offering</button>
+    <div style="font-size:11px;color:var(--tx2)" id="asmSummary"></div>
   </div>
-  <div class="tw"><table><thead><tr><th>Date</th><th>Member</th><th>Category</th><th>Amount (GH₵)</th><th>Method</th><th>Received by</th><th>Note</th></tr></thead><tbody id="tBody"></tbody></table></div>
+
+  <!-- Stats -->
+  <div class="g4" style="margin-bottom:12px" id="titheStats"></div>
+
+  <!-- Tabs -->
+  <div class="tabs" style="margin-bottom:12px">
+    <button class="tab active" onclick="titheTab('individual',this)">👤 Individual Tithe</button>
+    <button class="tab" onclick="titheTab('bulk',this)">📋 Bulk Tithe Entry</button>
+    <button class="tab" onclick="titheTab('mission',this)">🌍 Mission Offering</button>
+    <button class="tab" onclick="titheTab('history',this)">📜 Full History</button>
+  </div>
+
+  <!-- TAB: Individual -->
+  <div id="ttIndividual">
+    <div class="sec-h" style="margin-bottom:10px">
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <select id="tMonF" onchange="renderTithes()" style="width:auto"><option value="">All time</option></select>
+        <select id="tCatF" onchange="renderTithes()" style="width:auto">
+          <option value="">All categories</option>
+          <option>Tithe</option><option>Thanksgiving</option><option>Welfare Fund</option>
+          <option>Building Fund</option><option>Mission Fund</option>
+          <option>Special Offering</option><option>Harvest</option><option>Convention</option>
+        </select>
+        <select id="tMemF" onchange="renderTithes()" style="width:auto"><option value="">All members</option></select>
+        <select id="tAsmF" onchange="renderTithes()" style="width:auto">
+          <option value="">All assemblies</option>
+          <option value="English">English</option>
+          <option value="Akan">Akan</option>
+        </select>
+      </div>
+      <button class="btn btn-p" onclick="openAddTithe()">+ Record individual tithe</button>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Date</th><th>Assembly</th><th>Member</th><th>Category</th><th>Amount (GH₵)</th><th>Method</th><th>Received by</th><th>Note</th></tr></thead>
+      <tbody id="tBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- TAB: Bulk Tithe -->
+  <div id="ttBulk" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">📋 Bulk tithe entry — record multiple members at once</div>
+      <div class="fg">
+        <div class="fr"><label>Service date *</label><input type="date" id="btDate"></div>
+        <div class="fr"><label>Received by</label><input id="btRcv" placeholder="Collector name"></div>
+      </div>
+      <div class="fg">
+        <div class="fr"><label>Payment method</label>
+          <select id="btMth"><option>Cash</option><option>Mobile Money (MoMo)</option><option>Bank Transfer</option><option>Cheque</option></select>
+        </div>
+        <div class="fr"><label>Assembly</label>
+          <select id="btAsm"><option value="English">English Assembly</option><option value="Akan">Akan Assembly</option></select>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--tx2);margin-bottom:10px;padding:8px;background:#f0f4ff;border-radius:7px">
+        💡 Enter amount for each member below. Leave blank (or 0) to skip a member. Click <strong>Save all</strong> to record in one batch.
+      </div>
+      <div id="btMemberGrid" style="max-height:400px;overflow-y:auto"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">
+        <div style="font-size:13px;font-weight:700;color:var(--pr)">Batch total: <span id="btTotal" class="fin-income">GH₵ 0.00</span></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-o" onclick="btClear()">Clear all</button>
+          <button class="btn btn-p" onclick="saveBulkTithe()">💾 Save all tithes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Mission Offering -->
+  <div id="ttMission" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">🌍 Mission offering — bulk recording by assembly</div>
+      <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#e65100;line-height:1.6">
+        <strong>📌 Note:</strong> Mission offering is recorded as a single lump-sum per service date (not per individual). 
+        Record total amount collected from the entire assembly for that service.
+      </div>
+      <div class="fg">
+        <div class="fr"><label>Service date *</label><input type="date" id="moDate"></div>
+        <div class="fr"><label>Assembly *</label>
+          <select id="moAsm"><option value="English">English Assembly</option><option value="Akan">Akan Assembly</option></select>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="fr"><label>Total mission offering amount (GH₵) *</label>
+          <input type="number" id="moAmt" placeholder="0.00" min="0" step="0.01" style="font-size:18px;font-weight:700;color:#2d6a4f">
+        </div>
+        <div class="fr"><label>Collection method</label>
+          <select id="moMth"><option>Cash</option><option>Mobile Money (MoMo)</option><option>Bank Transfer</option><option>Cheque</option></select>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="fr"><label>Collected by</label><input id="moRcv" placeholder="Name of person who counted"></div>
+        <div class="fr"><label>Verified by</label><input id="moVrfy" placeholder="Elder or pastor who verified"></div>
+      </div>
+      <div class="fr"><label>Notes / reference</label><input id="moNotes" placeholder="e.g. 1st Sunday Mission, 2nd Sunday, Special mission drive..."></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px">
+        <button class="btn btn-o" onclick="clearMissionForm()">Clear</button>
+        <button class="btn btn-p" onclick="saveMissionOffering()">💾 Record mission offering</button>
+      </div>
+    </div>
+
+    <!-- Mission offering history -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span>📋 Mission offering history</span>
+        <div id="moStats" style="font-size:12px;color:var(--tx2)"></div>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Date</th><th>Assembly</th><th>Amount (GH₵)</th><th>Method</th><th>Collected by</th><th>Verified by</th><th>Notes</th></tr></thead>
+        <tbody id="moBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TAB: Full History -->
+  <div id="ttHistory" style="display:none">
+    <div class="sec-h" style="margin-bottom:10px">
+      <span style="font-size:12px;color:var(--tx2)">All income records across both assemblies</span>
+      <button class="btn btn-o btn-sm" onclick="exportTitheCSV()">📥 Export CSV</button>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Date</th><th>Assembly</th><th>Member</th><th>Category</th><th>Amount</th><th>Method</th><th>Received by</th><th>Note</th></tr></thead>
+      <tbody id="tHistBody"></tbody>
+    </table></div>
+  </div>
 </div>
 
 <div id="page-expenses" class="page">
@@ -1292,11 +1420,37 @@ tr:hover td{background:#fafafa}
 
 <div class="overlay" id="mTithe">
 <div class="modal">
-  <div class="modal-h">Record tithe / offering <button class="btn btn-o btn-sm" onclick="closeM('mTithe')">✕</button></div>
-  <div class="fr"><label>Member *</label><select id="tMem"></select></div>
-  <div class="fg"><div class="fr"><label>Date *</label><input type="date" id="tDt"></div><div class="fr"><label>Category *</label><select id="tCat"><option>Tithe</option><option>Thanksgiving</option><option>Welfare Fund</option><option>Building Fund</option><option>Mission Fund</option><option>Special Offering</option><option>Harvest</option><option>Convention</option></select></div></div>
-  <div class="fg"><div class="fr"><label>Amount (GH₵) *</label><input type="number" id="tAmt" placeholder="0.00" min="0" step="0.01"></div><div class="fr"><label>Payment method</label><select id="tMth"><option>Cash</option><option>Mobile Money (MoMo)</option><option>Bank Transfer</option><option>Cheque</option></select></div></div>
-  <div class="fg"><div class="fr"><label>Received by</label><input id="tRcv" placeholder="Collector name"></div><div class="fr"><label>Receipt number</label><input id="tRef" placeholder="Optional"></div></div>
+  <div class="modal-h">👤 Record individual tithe / offering <button class="btn btn-o btn-sm" onclick="closeM('mTithe')">✕</button></div>
+  <div class="fg">
+    <div class="fr"><label>Assembly *</label>
+      <select id="tAsm">
+        <option value="English">🇬🇧 English Assembly</option>
+        <option value="Akan">🇬🇭 Akan Assembly</option>
+      </select>
+    </div>
+    <div class="fr"><label>Member *</label><select id="tMem"></select></div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Date *</label><input type="date" id="tDt"></div>
+    <div class="fr"><label>Category *</label>
+      <select id="tCat">
+        <option>Tithe</option><option>Thanksgiving</option><option>Welfare Fund</option>
+        <option>Building Fund</option><option>Mission Fund</option>
+        <option>Special Offering</option><option>Harvest</option><option>Convention</option>
+        <option>Sunday Offering</option>
+      </select>
+    </div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Amount (GH₵) *</label><input type="number" id="tAmt" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="fr"><label>Payment method</label>
+      <select id="tMth"><option>Cash</option><option>Mobile Money (MoMo)</option><option>Bank Transfer</option><option>Cheque</option></select>
+    </div>
+  </div>
+  <div class="fg">
+    <div class="fr"><label>Received by</label><input id="tRcv" placeholder="Collector name"></div>
+    <div class="fr"><label>Receipt number</label><input id="tRef" placeholder="Optional"></div>
+  </div>
   <div class="fr"><label>Note</label><input id="tNot" placeholder="Optional note"></div>
   <div style="display:flex;gap:7px;justify-content:flex-end;margin-top:10px">
     <button class="btn btn-o" onclick="closeM('mTithe')">Cancel</button>
@@ -2023,7 +2177,7 @@ function showPage(id,el){
     members:async function(){await loadAll();renderMembers();loadPendingCount();},
     checkin:initCheckin,
     attendance:async function(){await loadAll();initAttDate();renderAtt();renderAttHist();},
-    tithes:async function(){await loadAll();renderTitheStats();renderTithes();populateTitheFilters();},
+    tithes:async function(){await loadAll();renderTitheStats();renderTithes();populateTitheFilters();updateAsmSummary();setAssembly(_currentAssembly,document.getElementById('asm'+(_currentAssembly==='akan'?'Akan':'Eng')));},
     expenses:async function(){await loadAll();renderExpStats();renderExp();populateExpFilters();},
     finance:async function(){await loadAll();renderFinance();populateFinMonths();renderFinStatement();},
     cells:async function(){await loadAll();renderCells();},
@@ -2451,39 +2605,69 @@ async function saveCheckin(){
 }
 
 function renderTitheStats(){
-  const t=DB.t;const tot=t.reduce((s,x)=>s+parseFloat(x.amt||0),0);
-  const ym=today.toISOString().slice(0,7);const mo=t.filter(x=>x.dt&&x.dt.startsWith(ym)).reduce((s,x)=>s+parseFloat(x.amt||0),0);
-  const ti=t.filter(x=>x.cat==='Tithe').reduce((s,x)=>s+parseFloat(x.amt||0),0);const of=t.filter(x=>x.cat!=='Tithe').reduce((s,x)=>s+parseFloat(x.amt||0),0);
-  document.getElementById('titheStats').innerHTML=
-    '<div class="stat"><div class="stat-n" style="font-size:16px">GH₵'+fmt(tot)+'</div><div class="stat-l">Total income</div></div>'+
-    '<div class="stat"><div class="stat-n" style="font-size:16px">GH₵'+fmt(mo)+'</div><div class="stat-l">This month</div></div>'+
+  const t=DB.t||[];
+  const tot=t.reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const ym=today.toISOString().slice(0,7);
+  const mo=t.filter(function(x){return x.dt&&x.dt.startsWith(ym);}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const ti=t.filter(function(x){return x.cat==='Tithe';}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const of=t.filter(function(x){return x.cat!=='Tithe';}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const eng=t.filter(function(x){return (!x.assembly||x.assembly==='English');}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const akn=t.filter(function(x){return x.assembly==='Akan';}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const mission=t.filter(function(x){return x.cat==='Mission Fund';}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const el=document.getElementById('titheStats');
+  if(!el)return;
+  el.innerHTML=
+    '<div class="stat"><div class="stat-n fin-income" style="font-size:16px">GH₵'+fmt(tot)+'</div><div class="stat-l">Total income (all)</div></div>'+
+    '<div class="stat"><div class="stat-n fin-income" style="font-size:16px">GH₵'+fmt(mo)+'</div><div class="stat-l">This month</div></div>'+
+    '<div class="stat"><div class="stat-n" style="font-size:16px;color:#1a3a6b">GH₵'+fmt(eng)+'</div><div class="stat-l">🇬🇧 English Assembly</div></div>'+
+    '<div class="stat"><div class="stat-n" style="font-size:16px;color:#2d6a4f">GH₵'+fmt(akn)+'</div><div class="stat-l">🇬🇭 Akan Assembly</div></div>'+
     '<div class="stat"><div class="stat-n" style="font-size:16px">GH₵'+fmt(ti)+'</div><div class="stat-l">Tithes only</div></div>'+
-    '<div class="stat"><div class="stat-n" style="font-size:16px">GH₵'+fmt(of)+'</div><div class="stat-l">Offerings</div></div>';
+    '<div class="stat"><div class="stat-n" style="font-size:16px;color:#6c3483">GH₵'+fmt(mission)+'</div><div class="stat-l">🌍 Mission offering</div></div>';
 }
+
 function populateTitheFilters(){
-  const months=Array.from(new Set(DB.t.map(x=>x.dt.slice(0,7)))).sort().reverse();
-  document.getElementById('tMonF').innerHTML='<option value="">All time</option>'+months.map(m=>'<option>'+m+'</option>').join('');
-  document.getElementById('tMemF').innerHTML='<option value="">All members</option>'+DB.m.map(m=>'<option value="'+m.id+'">'+m.fn+' '+m.ln+'</option>').join('');
+  const months=Array.from(new Set((DB.t||[]).map(function(x){return (x.dt||'').slice(0,7);}).filter(Boolean))).sort().reverse();
+  const mf=document.getElementById('tMonF');
+  if(mf)mf.innerHTML='<option value="">All time</option>'+months.map(function(m){return '<option>'+m+'</option>';}).join('');
+  const tf=document.getElementById('tMemF');
+  if(tf)tf.innerHTML='<option value="">All members</option>'+(DB.m||[]).map(function(m){return '<option value="'+m.id+'">'+m.fn+' '+m.ln+'</option>';}).join('');
 }
-function renderTithes(){
-  const mf=(document.getElementById('tMonF')||{}).value||'';const cf=(document.getElementById('tCatF')||{}).value||'';const memf=(document.getElementById('tMemF')||{}).value||'';
-  let list=DB.t.filter(x=>(!mf||x.dt.startsWith(mf))&&(!cf||x.cat===cf)&&(!memf||x.mid==memf)).slice().reverse();
-  const tbody=document.getElementById('tBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty">No records</div></td></tr>';return;}
-  tbody.innerHTML=list.map(function(x){const m=DB.m.find(y=>y.id==x.mid)||{fn:'Unknown',ln:''};return '<tr><td>'+x.dt+'</td><td>'+m.fn+' '+m.ln+'</td><td><span class="badge bc1">'+x.cat+'</span></td><td class="fin-income">GH₵ '+fmt(x.amt)+'</td><td>'+x.mth+'</td><td>'+(x.rcv||'—')+'</td><td style="font-size:10px;color:var(--tx3)">'+(x.not||'—')+'</td></tr>';}).join('');
-}
+
 function openAddTithe(){
-  document.getElementById('tMem').innerHTML=DB.m.filter(m=>m.st==='active').map(m=>'<option value="'+m.id+'">'+m.fn+' '+m.ln+'</option>').join('');
-  document.getElementById('tDt').value=today.toISOString().split('T')[0];
-  document.getElementById('tAmt').value='';document.getElementById('tNot').value='';document.getElementById('tRcv').value='';document.getElementById('tRef').value='';
-  document.getElementById('mTithe').classList.add('open');populateTitheFilters();
+  const tMem=document.getElementById('tMem');
+  if(tMem)tMem.innerHTML=(DB.m||[]).filter(function(m){return m.st==='active';}).map(function(m){return '<option value="'+m.id+'">'+m.fn+' '+m.ln+'</option>';}).join('');
+  const tDt=document.getElementById('tDt');if(tDt)tDt.value=today.toISOString().split('T')[0];
+  const tAmt=document.getElementById('tAmt');if(tAmt)tAmt.value='';
+  const tNot=document.getElementById('tNot');if(tNot)tNot.value='';
+  const tRcv=document.getElementById('tRcv');if(tRcv)tRcv.value='';
+  const tRef=document.getElementById('tRef');if(tRef)tRef.value='';
+  const tAsm=document.getElementById('tAsm');
+  if(tAsm)tAsm.value=_currentAssembly==='akan'?'Akan':'English';
+  populateTitheFilters();
+  document.getElementById('mTithe').classList.add('open');
 }
+
 async function saveTithe(){
-  const amt=parseFloat(document.getElementById('tAmt').value);if(!amt||amt<=0){showToast('Enter a valid amount','error');return;}
-  const r=await post('tithes',{dt:document.getElementById('tDt').value,mid:document.getElementById('tMem').value,cat:document.getElementById('tCat').value,amt:amt,mth:document.getElementById('tMth').value,rcv:document.getElementById('tRcv').value,ref:document.getElementById('tRef').value,not_:document.getElementById('tNot').value});
-  if(r&&r.success){closeM('mTithe');await loadAll();renderTithes();renderTitheStats();showToast('Payment recorded ✅');}
-  else showToast('Save failed','error');
+  const amt=parseFloat((document.getElementById('tAmt')||{value:0}).value);
+  if(!amt||amt<=0){showToast('Enter a valid amount','error');return;}
+  const asm=(document.getElementById('tAsm')||{value:'English'}).value;
+  const r=await post('tithes',{
+    dt:(document.getElementById('tDt')||{value:''}).value,
+    mid:(document.getElementById('tMem')||{value:0}).value,
+    cat:(document.getElementById('tCat')||{value:'Tithe'}).value,
+    amt:amt,
+    mth:(document.getElementById('tMth')||{value:'Cash'}).value,
+    rcv:(document.getElementById('tRcv')||{value:''}).value,
+    ref:(document.getElementById('tRef')||{value:''}).value,
+    not_:(document.getElementById('tNot')||{value:''}).value,
+    assembly:asm
+  });
+  if(r&&r.success){
+    closeM('mTithe');await loadAll();renderTithes();renderTitheStats();
+    showToast('Tithe recorded for '+asm+' Assembly ✅');
+  }else showToast('Save failed','error');
 }
+
 
 function renderExpStats(){
   const e=DB.e;const tot=e.reduce((s,x)=>s+parseFloat(x.amt||0),0);
@@ -4289,6 +4473,261 @@ function eqExportCSV(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='EWC_Equipment_'+new Date().toISOString().split('T')[0]+'.csv';a.click();
   showToast('Equipment list exported ✅');
+}
+
+
+// =====================================================================
+// ASSEMBLY SELECTOR, BULK TITHE, MISSION OFFERING
+// =====================================================================
+let _currentAssembly = localStorage.getItem('ewc_assembly') || 'english';
+
+function setAssembly(asm, btn){
+  _currentAssembly = asm;
+  localStorage.setItem('ewc_assembly', asm);
+  document.querySelectorAll('.asm-btn').forEach(function(b){
+    b.style.background = '#fff'; b.style.color = '#1a3a6b';
+  });
+  if(btn){ btn.style.background = '#1a3a6b'; btn.style.color = '#fff'; }
+  const lbl = document.getElementById('asmLabel');
+  if(lbl) lbl.textContent = 'Recording for ' + (asm==='akan'?'Akan':'English') + ' Assembly';
+  // Update bulk tithe assembly dropdown
+  const btAsm = document.getElementById('btAsm');
+  if(btAsm) btAsm.value = asm==='akan'?'Akan':'English';
+  const moAsm = document.getElementById('moAsm');
+  if(moAsm) moAsm.value = asm==='akan'?'Akan':'English';
+  const tAsm = document.getElementById('tAsm');
+  if(tAsm) tAsm.value = asm==='akan'?'Akan':'English';
+  updateAsmSummary();
+}
+
+function updateAsmSummary(){
+  const asm = _currentAssembly==='akan'?'Akan':'English';
+  const t = DB.t || [];
+  const engTotal = t.filter(x=>(!x.assembly||x.assembly==='English')).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const aknTotal = t.filter(x=>x.assembly==='Akan').reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const el = document.getElementById('asmSummary');
+  if(el) el.innerHTML = '<span style="color:#1a3a6b;font-weight:600">English: GH₵'+fmt(engTotal)+'</span>&nbsp;·&nbsp;<span style="color:#2d6a4f;font-weight:600">Akan: GH₵'+fmt(aknTotal)+'</span>';
+}
+
+function titheTab(tab, btn){
+  document.querySelectorAll('#page-tithes .tab').forEach(function(t){t.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  ['ttIndividual','ttBulk','ttMission','ttHistory'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const map={individual:'ttIndividual',bulk:'ttBulk',mission:'ttMission',history:'ttHistory'};
+  const el=document.getElementById(map[tab]);
+  if(el) el.style.display='block';
+  if(tab==='bulk') buildBulkGrid();
+  if(tab==='mission') renderMissionHistory();
+  if(tab==='history') renderTitheHistory();
+}
+
+// ── Individual tithe ──────────────────────────────────────────────
+// ── Bulk tithe ────────────────────────────────────────────────────
+function buildBulkGrid(){
+  const asm=(document.getElementById('btAsm')||{value:'English'}).value;
+  const members=DB.m.filter(function(m){return m.st==='active';});
+  const dt=document.getElementById('btDate');
+  if(dt&&!dt.value) dt.value=today.toISOString().split('T')[0];
+  const grid=document.getElementById('btMemberGrid');
+  if(!grid)return;
+  if(!members.length){grid.innerHTML='<div class="empty">No active members found. Add members first.</div>';return;}
+  grid.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+
+    members.map(function(m){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8f9fa;border-radius:7px;border:1px solid var(--bd)">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+m.fn+' '+m.ln+'</div>'+
+          '<div style="font-size:9.5px;color:var(--tx3)">'+m.cel+'</div>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:4px">'+
+          '<span style="font-size:11px;color:var(--tx2)">GH₵</span>'+
+          '<input type="number" id="bt_'+m.id+'" placeholder="0.00" min="0" step="0.01"'+
+            ' oninput="btUpdateTotal()"'+
+            ' style="width:80px;font-size:12px;font-weight:600;padding:4px 6px;border:1.5px solid var(--bd);border-radius:5px;text-align:right">'+
+        '</div>'+
+      '</div>';
+    }).join('')+
+  '</div>';
+}
+
+function btUpdateTotal(){
+  const members=DB.m.filter(function(m){return m.st==='active';});
+  let total=0;
+  members.forEach(function(m){
+    const el=document.getElementById('bt_'+m.id);
+    if(el)total+=parseFloat(el.value||0);
+  });
+  const el=document.getElementById('btTotal');
+  if(el)el.textContent='GH₵ '+fmt(total);
+}
+
+function btClear(){
+  const members=DB.m.filter(function(m){return m.st==='active';});
+  members.forEach(function(m){
+    const el=document.getElementById('bt_'+m.id);if(el)el.value='';
+  });
+  const el=document.getElementById('btTotal');if(el)el.textContent='GH₵ 0.00';
+}
+
+async function saveBulkTithe(){
+  const dt=(document.getElementById('btDate')||{value:''}).value;
+  const rcv=(document.getElementById('btRcv')||{value:''}).value;
+  const mth=(document.getElementById('btMth')||{value:'Cash'}).value;
+  const asm=(document.getElementById('btAsm')||{value:'English'}).value;
+  if(!dt){showToast('Select a service date','error');return;}
+
+  const members=DB.m.filter(function(m){return m.st==='active';});
+  const entries=[];
+  members.forEach(function(m){
+    const el=document.getElementById('bt_'+m.id);
+    const amt=parseFloat(el?el.value:0);
+    if(amt>0) entries.push({mid:m.id,amt:amt});
+  });
+
+  if(!entries.length){showToast('Enter at least one tithe amount','error');return;}
+
+  const btn=document.querySelector('#ttBulk .btn-p');
+  if(btn){btn.textContent='Saving '+entries.length+' records…';btn.disabled=true;}
+
+  let saved=0;
+  for(let i=0;i<entries.length;i++){
+    const r=await post('tithes',{
+      dt:dt, mid:entries[i].mid, cat:'Tithe', amt:entries[i].amt,
+      mth:mth, rcv:rcv, ref:'BULK-'+dt.replace(/-/g,''), assembly:asm
+    });
+    if(r&&r.success) saved++;
+  }
+
+  if(btn){btn.textContent='💾 Save all tithes';btn.disabled=false;}
+  await loadAll();renderTitheStats();renderTithes();
+  btClear();
+  showToast('✅ Saved '+saved+'/'+entries.length+' tithe records for '+asm+' Assembly');
+}
+
+// ── Mission Offering ──────────────────────────────────────────────
+async function saveMissionOffering(){
+  const amt=parseFloat((document.getElementById('moAmt')||{value:0}).value);
+  const dt=(document.getElementById('moDate')||{value:''}).value;
+  const asm=(document.getElementById('moAsm')||{value:'English'}).value;
+  if(!amt||amt<=0){showToast('Enter the mission offering amount','error');return;}
+  if(!dt){showToast('Select a service date','error');return;}
+
+  const r=await post('tithes',{
+    dt:dt, mid:0, cat:'Mission Fund',
+    amt:amt,
+    mth:(document.getElementById('moMth')||{value:'Cash'}).value,
+    rcv:(document.getElementById('moRcv')||{value:''}).value,
+    ref:'MISSION-'+asm+'-'+dt.replace(/-/g,''),
+    not_:'Mission Offering | Verified by: '+((document.getElementById('moVrfy')||{value:''}).value)+' | '+((document.getElementById('moNotes')||{value:''}).value),
+    assembly:asm
+  });
+
+  if(r&&r.success){
+    await loadAll();renderMissionHistory();renderTitheStats();
+    clearMissionForm();
+    showToast('Mission offering of GH₵'+fmt(amt)+' recorded for '+asm+' Assembly ✅');
+  }else showToast('Save failed','error');
+}
+
+function clearMissionForm(){
+  ['moAmt','moRcv','moVrfy','moNotes','moDate'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+}
+
+function renderMissionHistory(){
+  const tbody=document.getElementById('moBody');
+  const statsEl=document.getElementById('moStats');
+  if(!tbody)return;
+  const missions=(DB.t||[]).filter(function(t){return t.cat==='Mission Fund';});
+  const total=missions.reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const eng=missions.filter(function(x){return !x.assembly||x.assembly==='English';}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  const akn=missions.filter(function(x){return x.assembly==='Akan';}).reduce(function(s,x){return s+parseFloat(x.amt||0);},0);
+  if(statsEl) statsEl.innerHTML='Total: <strong class="fin-income">GH₵'+fmt(total)+'</strong> &nbsp;·&nbsp; English: GH₵'+fmt(eng)+' &nbsp;·&nbsp; Akan: GH₵'+fmt(akn);
+  if(!missions.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty">No mission offerings recorded yet</div></td></tr>';return;}
+  tbody.innerHTML=missions.slice().reverse().map(function(x){
+    const note=(x.not_||'').replace(/Mission Offering \| /,'').replace(/Verified by: /,'✓ ');
+    return '<tr>'+
+      '<td>'+x.dt+'</td>'+
+      '<td><span class="badge '+(x.assembly==='Akan'?'bc2':'bc1')+'">'+( x.assembly||'English')+'</span></td>'+
+      '<td class="fin-income" style="font-weight:700;font-size:13px">GH₵'+fmt(x.amt)+'</td>'+
+      '<td>'+x.mth+'</td>'+
+      '<td>'+(x.rcv||'—')+'</td>'+
+      '<td style="font-size:10.5px;color:var(--tx2)">'+note+'</td>'+
+      '<td style="font-size:10.5px;color:var(--tx3)">'+(x.ref||'')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── Updated renderTithes — shows assembly column ───────────────────
+function renderTithes(){
+  const t=DB.t||[], m=DB.m||[];
+  const mf=(document.getElementById('tMonF')||{value:''}).value||'';
+  const cf=(document.getElementById('tCatF')||{value:''}).value||'';
+  const memf=(document.getElementById('tMemF')||{value:''}).value||'';
+  const asmf=(document.getElementById('tAsmF')||{value:''}).value||'';
+  let list=t.filter(function(x){
+    if(mf&&!(x.dt||'').startsWith(mf))return false;
+    if(cf&&x.cat!==cf)return false;
+    if(memf&&x.mid!=memf)return false;
+    if(asmf&&(x.assembly||'English')!==asmf)return false;
+    return true;
+  });
+  const tbody=document.getElementById('tBody');
+  if(!tbody)return;
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty">No records match the filter</div></td></tr>';return;}
+  tbody.innerHTML=list.slice(0,80).map(function(x){
+    const mem=m.find(function(y){return y.id==x.mid;})||{fn:'',ln:'—'};
+    const asm=x.assembly||'English';
+    return '<tr>'+
+      '<td style="font-size:11px">'+x.dt+'</td>'+
+      '<td><span class="badge '+(asm==='Akan'?'bc2':'bc1')+'" style="font-size:9px">'+asm+'</span></td>'+
+      '<td>'+(x.mid?mem.fn+' '+mem.ln:'<em style="color:var(--tx3)">Bulk / Assembly</em>')+'</td>'+
+      '<td><span class="badge bc3" style="font-size:9px">'+x.cat+'</span></td>'+
+      '<td class="fin-income" style="font-weight:700">GH₵'+fmt(x.amt)+'</td>'+
+      '<td style="font-size:11px">'+(x.mth||'Cash')+'</td>'+
+      '<td style="font-size:11px">'+(x.rcv||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+( x.not_||x.not||'')+'</td>'+
+    '</tr>';
+  }).join('');
+  updateAsmSummary();
+}
+
+function renderTitheHistory(){
+  const t=DB.t||[];const m=DB.m||[];
+  const tbody=document.getElementById('tHistBody');if(!tbody)return;
+  if(!t.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty">No records yet</div></td></tr>';return;}
+  tbody.innerHTML=t.slice(0,100).map(function(x){
+    const mem=m.find(function(y){return y.id==x.mid;})||{fn:'',ln:''};
+    const asm=x.assembly||'English';
+    return '<tr>'+
+      '<td style="font-size:11px">'+x.dt+'</td>'+
+      '<td><span class="badge '+(asm==='Akan'?'bc2':'bc1')+'" style="font-size:9px">'+asm+'</span></td>'+
+      '<td style="font-size:11px">'+(x.mid?(mem.fn+' '+mem.ln).trim()||'—':'Bulk / Assembly')+'</td>'+
+      '<td><span class="badge bc3" style="font-size:9px">'+x.cat+'</span></td>'+
+      '<td class="fin-income" style="font-weight:700">GH₵'+fmt(x.amt)+'</td>'+
+      '<td style="font-size:11px">'+(x.mth||'Cash')+'</td>'+
+      '<td style="font-size:11px">'+(x.rcv||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+(x.not_||x.not||'')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function exportTitheCSV(){
+  const t=DB.t||[];const m=DB.m||[];
+  const rows=[['Date','Assembly','Member','Category','Amount (GH₵)','Method','Received by','Note']];
+  t.forEach(function(x){
+    const mem=m.find(function(y){return y.id==x.mid;})||{fn:'',ln:''};
+    rows.push([x.dt,x.assembly||'English',(x.mid?(mem.fn+' '+mem.ln).trim():'Bulk / Assembly'),
+      x.cat,fmt(x.amt),x.mth||'Cash',x.rcv||'',x.not_||x.not||'']);
+  });
+  const csv=rows.map(function(r){return r.map(function(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='EWC_Tithes_'+today.toISOString().split('T')[0]+'.csv';a.click();
+  showToast('Exported ✅');
 }
 
 if('serviceWorker' in navigator){
