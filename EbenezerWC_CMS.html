@@ -250,6 +250,7 @@ tr:hover td{background:#fafafa}
     <div class="church-info">
       <h1>Ebenezer Worship Centre — Taifa</h1>
       <p>The Church of Pentecost · <span id='sideDistrict'>Greater Accra</span></p>
+      <div id="currentAsmBadge" style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:9.5px;font-weight:700;margin-top:2px;background:rgba(255,255,255,0.2);color:#fff"></div>
     </div>
     <div class="hdr-right">
       <div id="hdrDate" style="font-size:10px"></div>
@@ -297,12 +298,13 @@ tr:hover td{background:#fafafa}
 
 <div id="page-dashboard" class="page active">
 
-  <!-- Church banner -->
-  <div style="background:linear-gradient(135deg,#1a3a6b,#2d6a4f);border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
+    <!-- Church banner -->
+  <div id="dashBanner" style="background:linear-gradient(135deg,#1a3a6b,#2d6a4f);border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
     <img src="https://image.pngaaa.com/448/4569448-middle.png" alt="COP" style="width:48px;height:48px;border-radius:50%;background:#fff;padding:2px;flex-shrink:0" onerror="this.style.display='none'">
     <div>
-      <div style="font-size:15px;font-weight:700">Ebenezer Worship Centre — Taifa</div>
-      <div style="font-size:11px;opacity:0.85">The Church of Pentecost · <span id='dashDistrict'></span></div>
+      <div style="font-size:15px;font-weight:700" id="dbChurchName">Ebenezer Worship Centre — Taifa</div>
+      <div style="font-size:11px;opacity:0.85">The Church of Pentecost · <span id="dashDistrict"></span></div>
+      <div id="dbAsmBadge" style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:9.5px;font-weight:700;margin-top:4px;background:rgba(255,255,255,0.2);color:#fff"></div>
       <div style="font-size:10px;opacity:0.7;margin-top:2px" id="dbDate"></div>
     </div>
     <div style="margin-left:auto;text-align:right;font-size:11px;opacity:0.9" id="dbGreeting"></div>
@@ -379,6 +381,18 @@ tr:hover td{background:#fafafa}
       <button class="btn btn-o btn-sm" onclick="document.getElementById('pendingRegPanel').style.display='none'">✕ Close</button>
     </div>
     <div id="pendingRegList"></div>
+  </div>
+
+  <!-- Assembly indicator bar -->
+  <div id="membersAsmBar" style="border-radius:10px;padding:10px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"></div>
+
+  <!-- Import Akan members button (shows only when no Akan members exist) -->
+  <div id="akanImportBanner" style="display:none;background:linear-gradient(135deg,#2d6a4f,#1a6b4a);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div style="color:#fff">
+      <div style="font-size:12px;font-weight:700">🇬🇭 Import Akan Assembly members</div>
+      <div style="font-size:10.5px;opacity:0.85;margin-top:2px">56 Akan Assembly members are ready to be imported into the system</div>
+    </div>
+    <button class="btn btn-wa btn-sm" onclick="importAkanMembers()">📥 Import 56 Akan members</button>
   </div>
 
   <!-- Registration link generator -->
@@ -2020,30 +2034,215 @@ async function doRegister(){
 
 async function bootApp(){
   document.getElementById('authWrap').style.display='none';
+  // Show assembly selection screen
+  document.getElementById('asmSelectWrap').style.display='flex';
+}
+
+async function enterAssembly(asm){
+  _currentAssembly = asm;
+  localStorage.setItem('ewc_assembly', asm);
+  document.getElementById('asmSelectWrap').style.display='none';
   document.getElementById('mainApp').style.display='flex';
+
+  // Update assembly badge in header
+  updateAsmBadge();
+
   // Show user name and role in header
   const displayName=(currentUser.fn||'')+(currentUser.ln?' '+currentUser.ln:'');
   document.getElementById('currentUserLbl').textContent=displayName+' ('+currentUser.role+')';
   document.getElementById('hdrDate').textContent=today.toLocaleDateString('en-GH',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
-  // Keep JWT alive: refresh token expiry by re-storing
+
+  // Keep JWT alive
   localStorage.setItem('ewc_jwt',AUTH_TOKEN);
   localStorage.setItem('ewc_user',JSON.stringify(currentUser));
-  // Load all data and render
+
+  // Load all data filtered by assembly and render dashboard
   await loadAll();
   renderDashboard();
   checkPendingRegistrations();
+
   // Refresh session token silently every 12 hours
   if(!window._tokenRefreshTimer){
     window._tokenRefreshTimer=setInterval(async function(){
       try{
-        const r=await fetch(API_BASE+'/api/login',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({username:currentUser.username,_refresh:AUTH_TOKEN})
-        });
-        if(r.ok){const d=await r.json();if(d.token){AUTH_TOKEN=d.token;localStorage.setItem('ewc_jwt',AUTH_TOKEN);}}
+        const saved=getSavedAccounts()[0];
+        if(saved){
+          const pw=decodeURIComponent(escape(atob(saved.enc)));
+          const r=await fetch(API_BASE+'/api/login',{method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username:currentUser.username,password:pw})});
+          if(r.ok){const d=await r.json();if(d.token){AUTH_TOKEN=d.token;localStorage.setItem('ewc_jwt',AUTH_TOKEN);}}
+        }
       }catch(e){}
     },12*60*60*1000);
+  }
+}
+
+function updateAsmBadge(){
+  const badge=document.getElementById('currentAsmBadge');
+  if(!badge)return;
+  const map={english:'🇬🇧 English Assembly',akan:'🇬🇭 Akan Assembly',all:'👁 All Assemblies'};
+  const colors={english:'#1a3a6b',akan:'#2d6a4f',all:'#6c3483'};
+  badge.textContent=map[_currentAssembly]||'English Assembly';
+  badge.style.background=colors[_currentAssembly]||'#1a3a6b';
+  badge.style.color='#fff';
+  badge.style.display='inline-block';
+}
+
+function switchAssembly(){
+  // Return to assembly selection screen
+  if(window._tokenRefreshTimer){clearInterval(window._tokenRefreshTimer);window._tokenRefreshTimer=null;}
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('asmSelectWrap').style.display='flex';
+  // Populate counts on selection screen
+  const eEl=document.getElementById('asmUserName');
+  if(eEl)eEl.textContent=currentUser?currentUser.fn+' '+currentUser.ln:'';
+  loadAssemblyData();
+}
+
+async function loadAssemblyData(){
+  // Load member counts for each assembly to show on selection screen
+  try{
+    const r=await get('dashboard?assembly=all');
+    const engEl=document.getElementById('engMemberCount');
+    const aknEl=document.getElementById('aknMemberCount');
+    const uEl=document.getElementById('asmUserName');
+    if(uEl)uEl.textContent=currentUser?currentUser.fn+' '+currentUser.ln:'';
+    if(r){
+      if(engEl)engEl.textContent=(r.members_english||0)+' active members';
+      if(aknEl)aknEl.textContent=(r.members_akan||0)+' active members';
+    }
+  }catch(e){}
+}
+
+// Override loadAll to filter by current assembly
+async function loadAll() {
+  showLoader(true);
+  const asm=_currentAssembly;
+  const [m,t,e,a,cv,b,ev,pr,wk,xf,or_,mm,hgb,sp,sc,eq,mt,users,cfg] = await Promise.all([
+    get('members'), get('tithes'), get('expenses'), get('attendance'),
+    get('converts'), get('beneficiaries'), get('events'), get('prayer_requests'),
+    get('weekly_records'), get('transfers'), get('outreach'), get('ministry_meetings'),
+    get('holy_ghost_baptisms'), get('special_events'), get('scholarships'),
+    get('equipment'), get('maintenance'), get('users'), get('config')
+  ]);
+
+  // Filter members by assembly (unless "all" is selected)
+  const allMembers = m || [];
+  DB.m = asm==='all' ? allMembers :
+    asm==='akan' ? allMembers.filter(function(x){return x.assembly==='Akan';}) :
+    allMembers.filter(function(x){return !x.assembly||x.assembly==='English';});
+
+  // Filter tithes by assembly
+  const allTithes = (t||[]).map(function(x){return {...x,amt:x.amt||0,dt:x.dt||'',cat:x.cat||'',mid:x.mid||'',mth:x.mth||'Cash',rcv:x.rcv||'',not:x.not_||''};});
+  DB.t = asm==='all' ? allTithes :
+    asm==='akan' ? allTithes.filter(function(x){return x.assembly==='Akan';}) :
+    allTithes.filter(function(x){return !x.assembly||x.assembly==='English';});
+
+  DB.e  = e   || [];
+  DB.a  = a   || [];
+  DB.c  = cv  || [];
+  DB.b  = b   || [];
+  DB.ev = ev  || [];
+  DB.pr = pr  || [];
+  DB.wk = wk  || [];
+  DB.xf = xf  || [];
+  DB.or = or_ || [];
+  DB.mm = mm  || [];
+  DB.hgb= hgb || [];
+  DB.sp = sp  || [];
+  DB.sc = sc  || [];
+  DB.eq = eq  || [];
+  DB.mt = mt  || [];
+  DB.users = users || [];
+  DB.cfg = cfg || {};
+  showLoader(false);
+}
+
+// ── Import Akan members from built-in data ─────────────────────────
+const AKAN_MEMBERS_DATA = [
+  {fn:"HENRIETTA",ln:"LARBI ADDO",ge:"Female",ph:"0242256982",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1979-06-13",oc:"TRADER",adr:"",nokN:"NAA LAMILEY GOLIGHTHTLY",nokP:"0242256982",assembly:"Akan"},
+  {fn:"ALICE",ln:"OKYERE",ge:"Female",ph:"0244000000",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1949-09-09",oc:"",adr:"",nokN:"JOYCE BOATEMAA",nokP:"0244000000",assembly:"Akan"},
+  {fn:"MAVIS",ln:"BOATEMAA",ge:"Female",ph:"0542605317",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1970-12-12",oc:"CLEANER AND TRADER",adr:"",nokN:"EDMUND A. APPAH",nokP:"0542605317",assembly:"Akan"},
+  {fn:"GLADYS",ln:"TETTEH",ge:"Female",ph:"0244000000",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1984-12-05",oc:"TRADER",adr:"",nokN:"CHAWEY PRISCILLA",nokP:"0244000000",assembly:"Akan"},
+  {fn:"DUNCAN",ln:"EMMANUEL",ge:"Male",ph:"0553591580",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1965-02-01",oc:"",adr:"",nokN:"NANA AHIMMA",nokP:"0553591580",assembly:"Akan"},
+  {fn:"PHILOMENA",ln:"OKYERE",ge:"Female",ph:"0240420820",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1981-04-22",oc:"",adr:"",nokN:"HANNAH",nokP:"0240420820",assembly:"Akan"},
+  {fn:"GEORGINA",ln:"ATTAH",ge:"Female",ph:"0556268349",rank:"Elder",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1974-07-15",oc:"TRADER",adr:"",nokN:"ELVIS ATTOBRAH",nokP:"0556268349",assembly:"Akan"},
+  {fn:"LINDA",ln:"ADOMAKO",ge:"Female",ph:"0244000000",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1983-07-03",oc:"HAIRDRESSER",adr:"",nokN:"WILLIAM ADOMAKO",nokP:"0244000000",assembly:"Akan"},
+  {fn:"COLLINS",ln:"MANFUL",ge:"Male",ph:"0557476910",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"2001-12-29",oc:"FACTORY HAND",adr:"",nokN:"CARLOS MANFUL",nokP:"0557476910",assembly:"Akan"},
+  {fn:"ADWOA",ln:"KONADU",ge:"Female",ph:"0249009555",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1979-02-03",oc:"TRADER",adr:"",nokN:"RANDY OFOSU",nokP:"0249009555",assembly:"Akan"},
+  {fn:"ABOAGYEWAA",ln:"SALOMEY",ge:"Female",ph:"0594118326",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1974-03-01",oc:"",adr:"",nokN:"HANNAH ABORA",nokP:"0594118326",assembly:"Akan"},
+  {fn:"VIDA",ln:"TWUM",ge:"Female",ph:"0244000001",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1961-01-09",oc:"TRADER",adr:"",nokN:"TINA TWUM",nokP:"0244000001",assembly:"Akan"},
+  {fn:"EMMANUEL",ln:"ADOKO",ge:"Male",ph:"0599989718",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1983-12-12",oc:"SECURITY",adr:"",nokN:"COLLETTE LONGO",nokP:"0599989718",assembly:"Akan"},
+  {fn:"SAMUEL KWESI",ln:"EGYIR",ge:"Male",ph:"0535592355",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1986-05-01",oc:"PROJECT ASSOCIATE",adr:"",nokN:"REBECCA EGYIR",nokP:"0535849429",assembly:"Akan"},
+  {fn:"ADJEI",ln:"JAMES",ge:"Male",ph:"0545191113",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1962-06-01",oc:"TRADER",adr:"",nokN:"YES",nokP:"0545191113",assembly:"Akan"},
+  {fn:"EMMANUEL",ln:"KISSI",ge:"Male",ph:"0277744477",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1972-08-19",oc:"BUSINESS MAN",adr:"",nokN:"FAUSTINA OBENG",nokP:"0277744477",assembly:"Akan"},
+  {fn:"ADOMAKO",ln:"WILLIAM",ge:"Male",ph:"0530486963",rank:"Deacon",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1979-02-07",oc:"STORE ASSISTANT",adr:"",nokN:"AGYAPON EMMANUEL",nokP:"0530486963",assembly:"Akan"},
+  {fn:"AMOAKO",ln:"HAGGAN",ge:"Male",ph:"0243019869",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1965-10-15",oc:"TRADER",adr:"",nokN:"FAUSTINA ANSOMAA",nokP:"0243019869",assembly:"Akan"},
+  {fn:"VICTORIA",ln:"ABEDI",ge:"Female",ph:"0208557617",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1961-02-05",oc:"TRADER",adr:"",nokN:"HENRY OPARE",nokP:"0208557617",assembly:"Akan"},
+  {fn:"DORA",ln:"AMOANI",ge:"Female",ph:"0244000002",rank:"Member",cel:"None",min:"None",jd:"2026-08-04",st:"active",dob:"1967-03-03",oc:"",adr:"",nokN:"KOFI APREKU",nokP:"0244000002",assembly:"Akan"},
+  {fn:"LYDIA",ln:"AKONOBEA",ge:"Female",ph:"0242660887",rank:"Member",cel:"Cell 3",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1968-07-03",oc:"TRADER",emp:"SELF EMPLOYED",adr:"",nokN:"JOSEPHINE AKOTO",nokP:"0502066013",assembly:"Akan"},
+  {fn:"DIANA",ln:"AMOAKO",ge:"Female",ph:"",rank:"Member",cel:"Cell 1",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1984-05-14",oc:"",adr:"",nokN:"",nokP:"",assembly:"Akan"},
+  {fn:"GLADYS",ln:"AKONOBEA",ge:"Female",ph:"0243245839",rank:"Member",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1954-01-04",oc:"TRADER",adr:"TAIFA - NEAR THE RAILWAYS",nokN:"OLIVIA KODUAH",nokP:"0247664853",assembly:"Akan"},
+  {fn:"MARGARET",ln:"KWOFIE",ge:"Female",ph:"0242231986",rank:"Deaconess",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1958-03-03",oc:"TRADER",adr:"TAIFA - MR. ADJEI",nokN:"CYNTHIA BOATEMAA",nokP:"0242231986",assembly:"Akan"},
+  {fn:"FELICITY",ln:"TIWAAH",ge:"Female",ph:"0548215650",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1959-10-30",oc:"TRADER",emp:"SELF EMPLOYED",adr:"TAIFA SDA",nokN:"GODFRED OPPONG",nokP:"0557757863",assembly:"Akan"},
+  {fn:"REBECCA",ln:"AMOAKOWAA",ge:"Female",ph:"0596044010",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1957-06-15",oc:"TRADER",emp:"SELF EMPLOYED",adr:"TAIFA",nokN:"ABIGAIL AMOAKOWAA",nokP:"0596044010",assembly:"Akan"},
+  {fn:"FLORENCE",ln:"NYANTEKYIWA",ge:"Female",ph:"0533767564",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1972-05-02",oc:"TRADER",emp:"SELF EMPLOYED",adr:"TAIFA",nokN:"ELLEN BOATENG",nokP:"0244767867",assembly:"Akan"},
+  {fn:"VIDA AGYEI",ln:"FRIMPONG",ge:"Female",ph:"0249541690",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1981-04-14",oc:"TRADER",emp:"SELF EMPLOYED",adr:"TAIFA",nokN:"DORIS NTIAMOAH",nokP:"0249541690",assembly:"Akan"},
+  {fn:"SAMUEL AMOAH",ln:"OSABUTEY",ge:"Male",ph:"0548693630",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1998-11-19",oc:"CARPENTER",adr:"TAIFA",nokN:"GABRIEL OSABUTEY",nokP:"0548693630",assembly:"Akan"},
+  {fn:"JUSTICE",ln:"AMANKRAH",ge:"Male",ph:"0549132837",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1996-08-09",oc:"SOFTWARE ENGINEER",adr:"",nokN:"SUZAANE",nokP:"0549132837",assembly:"Akan"},
+  {fn:"BENJAMIN",ln:"ADDAE",ge:"Male",ph:"0543147552",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1995-03-19",oc:"RECEPTIONIST",adr:"",nokN:"EDMUND A. ASIEDU",nokP:"0543147552",assembly:"Akan"},
+  {fn:"FRANK",ln:"OWUSU",ge:"Male",ph:"0243987308",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1997-05-02",oc:"",adr:"",nokN:"DEBORAH OWUSU",nokP:"0243987308",assembly:"Akan"},
+  {fn:"BRIGHT",ln:"ESSAH",ge:"Male",ph:"0548448777",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1993-01-15",oc:"MILITARY",adr:"",nokN:"AURELIA",nokP:"",assembly:"Akan"},
+  {fn:"AKOSUA",ln:"TWUMUAA",ge:"Female",ph:"0241417238",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"",oc:"SELF EMPLOYED",adr:"",nokN:"SANDRA ABRAFI",nokP:"0241417238",assembly:"Akan"},
+  {fn:"KWAKU",ln:"NYARKO",ge:"Male",ph:"0545531013",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1996-04-12",oc:"AUTO ELECTRICIAN",adr:"",nokN:"SHADRACK OMARI",nokP:"0545531013",assembly:"Akan"},
+  {fn:"LINDA",ln:"TWENEBOAH",ge:"Female",ph:"0244215212",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1991-01-29",oc:"",adr:"",nokN:"ELIZABETH TWENEBOAH",nokP:"0247111368",assembly:"Akan"},
+  {fn:"DOROTHY",ln:"DEDE",ge:"Female",ph:"0541633316",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1994-05-31",oc:"TRADER",adr:"",nokN:"KOKOR LYDIA",nokP:"0541633316",assembly:"Akan"},
+  {fn:"AMARNORTEY EBENEZER",ln:"TEYE",ge:"Male",ph:"0552109402",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"2000-08-10",oc:"TILER",adr:"",nokN:"AMARNORTEY NOAH",nokP:"0552109402",assembly:"Akan"},
+  {fn:"MATILDA",ln:"MENSAH",ge:"Female",ph:"0557364728",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1991-11-30",oc:"TEACHER",adr:"",nokN:"SETH MENSAH",nokP:"0557364728",assembly:"Akan"},
+  {fn:"ISAAC",ln:"TENKORANG",ge:"Male",ph:"0246647393",rank:"Member",cel:"Cell 1",min:"Men's Ministry",jd:"2026-08-03",st:"active",dob:"1981-12-05",oc:"SELF EMPLOYED",adr:"TAIFA - DOME DOWN",nokN:"BERNICE TENKORANG",nokP:"0246647393",assembly:"Akan"},
+  {fn:"AGARTHA",ln:"YEBOAH",ge:"Female",ph:"0245592800",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1962-08-08",oc:"SELF EMPLOYED",adr:"",nokN:"CHRISTIANA OBENG",nokP:"0245592800",assembly:"Akan"},
+  {fn:"JANET",ln:"SERWAH",ge:"Female",ph:"0240614421",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1967-12-25",oc:"TRADER",adr:"",nokN:"ANITA YEBOAH",nokP:"0240614421",assembly:"Akan"},
+  {fn:"MARGARET",ln:"AGYEI",ge:"Female",ph:"0559594553",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1964-05-14",oc:"OFORI AMPONSAH",adr:"",nokN:"SANDRA ANTWI",nokP:"0559594553",assembly:"Akan"},
+  {fn:"SUZAANE",ln:"AMANKRAH",ge:"Female",ph:"0559594554",rank:"Member",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"2002-02-05",oc:"GRAPHIC DESIGNER",adr:"",nokN:"JUSTICE AMANKRAH",nokP:"0559594554",assembly:"Akan"},
+  {fn:"BISMARK",ln:"OSAFOR",ge:"Male",ph:"0592500294",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"2008-10-21",oc:"TAIFA AIRPORT",adr:"",nokN:"KWAKU MANU",nokP:"0592500294",assembly:"Akan"},
+  {fn:"HANNAH",ln:"BOATENG",ge:"Female",ph:"0551425109",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1996-02-13",oc:"CLEANING HOSPITAL",adr:"TAIFA",nokN:"JEREMIAH EGYIR",nokP:"0551425109",assembly:"Akan"},
+  {fn:"ANGELA",ln:"KESSEWAH",ge:"Female",ph:"0257380735",rank:"Member",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"2002-03-18",oc:"",adr:"TAIFA",nokN:"KWAKU NYARKO",nokP:"0257380735",assembly:"Akan"},
+  {fn:"SARAH",ln:"ANSAH",ge:"Female",ph:"0247043941",rank:"Member",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1983-12-15",oc:"HAIRDRESSER",emp:"SELF EMPLOYED",adr:"TAIFA",nokN:"PRISCILLA OPPONG",nokP:"0247043941",assembly:"Akan"},
+  {fn:"DORIS",ln:"DUFFOUR DONKOR",ge:"Female",ph:"0548684240",rank:"Member",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1970-12-24",oc:"TRADER",emp:"SELF EMPLOYED",adr:"TAIFA",nokN:"KWABENA MENSAH",nokP:"0548684240",assembly:"Akan"},
+  {fn:"AGNES",ln:"GABLA",ge:"Female",ph:"0558679803",rank:"Member",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1986-07-10",oc:"TRADER",emp:"SELF EMPLOYED",adr:"",nokN:"REGINA GABLA",nokP:"0558679803",assembly:"Akan"},
+  {fn:"ROSE",ln:"ESHUN",ge:"Female",ph:"0243473700",rank:"Deaconess",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1975-11-21",oc:"TRADER",emp:"SELF EMPLOYED",adr:"TAIFA OBO HENE RESIDENCE",nokN:"SULEMAN ESHUN",nokP:"0547825045",assembly:"Akan"},
+  {fn:"DEBORAH",ln:"OWUSU BOATENG",ge:"Female",ph:"0558723848",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1998-02-04",oc:"FASHION DESIGNER",emp:"SELF EMPLOYED",adr:"",nokN:"FRANK OWUSU",nokP:"0558723848",assembly:"Akan"},
+  {fn:"COLLETTE",ln:"LONGO",ge:"Female",ph:"0531909448",rank:"Member",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1992-03-06",oc:"TYPIST",emp:"ADOM CRYSTAL PRINT",adr:"TAIFA - NEAR SDA CHURCH",nokN:"EMMANUEL ADOKO",nokP:"0531909448",assembly:"Akan"},
+  {fn:"BISMARK KOJO",ln:"DADZIE",ge:"Male",ph:"0277153558",rank:"Elder",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1973-03-04",oc:"AUTO ELECTRICIAN",emp:"SELF EMPLOYED",adr:"TAIFA BURKINA",nokN:"PATRICIA MANDO",nokP:"0277153558",assembly:"Akan"},
+  {fn:"ESTHER",ln:"ASANTE",ge:"Female",ph:"0245434926",rank:"Deaconess",cel:"Cell 2",min:"Women's Ministry",jd:"2026-08-03",st:"active",dob:"1969-10-15",oc:"FARMER",emp:"SELF EMPLOYED",adr:"TAIFA BURKINA",nokN:"MICHAEL ASANTE",nokP:"0245434926",assembly:"Akan"},
+  {fn:"SAMUEL KWESI",ln:"EGYIR",ge:"Male",ph:"0537175970",rank:"Elder",cel:"None",min:"None",jd:"2026-08-03",st:"active",dob:"1986-01-05",oc:"CONSULTANT",emp:"SEGYIR",adr:"HOUSE NO. 6 ROMAN CATHOLIC CHURCH",nokN:"REBECCA APPAH",nokP:"0535849429",assembly:"Akan"}
+];
+
+async function importAkanMembers(){
+  if(!confirm('Import all 56 Akan Assembly members into the system?\n\nDuplicate entries will be skipped automatically.'))return;
+  showToast('Importing Akan members...','warn');
+  try{
+    const r=await api('POST','import-members',AKAN_MEMBERS_DATA);
+    if(r&&r.success){
+      await loadAll();
+      renderMembers&&renderMembers();
+      showToast('Akan Assembly: '+r.imported+' members imported, '+r.skipped+' already existed ✅');
+    }else{
+      showToast('Import failed — check server connection','error');
+    }
+  }catch(e){
+    showToast('Import error: '+e.message,'error');
+  }
+}
+
+// Auto-trigger Akan member import if Akan assembly selected and no Akan members exist
+async function checkAndImportAkan(){
+  if(_currentAssembly==='akan'){
+    const existing=(DB.m||[]).filter(function(x){return x.assembly==='Akan';});
+    if(existing.length===0){
+      await importAkanMembers();
+    }
   }
 }
 
@@ -2054,6 +2253,7 @@ function signOut(){
   localStorage.removeItem('ewc_jwt');
   localStorage.removeItem('ewc_user');
   document.getElementById('mainApp').style.display='none';
+  document.getElementById('asmSelectWrap').style.display='none';
   document.getElementById('authWrap').style.display='flex';
   document.getElementById('loginPass').value='';
   setTimeout(initLoginPage,100);
@@ -2077,8 +2277,10 @@ function showUserMenu(){ if(confirm('Sign out of the system?')) signOut(); }
   if(AUTH_TOKEN && storedUser){
     try{
       currentUser=JSON.parse(storedUser);
-      // Try to boot immediately with stored token
+      // Show assembly selector (not app directly)
       bootApp();
+      // Pre-populate assembly selector counts
+      setTimeout(loadAssemblyData, 500);
       // Then silently verify token is still valid with server
       fetch(API_BASE+'/api/dashboard',{headers:{Authorization:'Bearer '+AUTH_TOKEN}})
         .then(function(r){
@@ -2269,6 +2471,13 @@ function renderDashboard(){
   const el_greet=document.getElementById('dbGreeting');
   if(el_date)el_date.textContent=today.toLocaleDateString('en-GH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   if(el_greet)el_greet.innerHTML=greeting+', '+(currentUser?currentUser.fn:'Pastor')+'<br><span style="font-size:9px;opacity:0.7">'+(DB.cfg.name||'Ebenezer Worship Centre')+'</span>';
+  // Assembly-specific dashboard badge
+  const asmMap={english:'🇬🇧 English Assembly',akan:'🇬🇭 Akan Assembly',all:'👁 All Assemblies Combined'};
+  const asmColors={english:'rgba(255,255,255,0.25)',akan:'rgba(255,255,255,0.25)',all:'rgba(255,255,255,0.2)'};
+  const dbAsmBadge=document.getElementById('dbAsmBadge');
+  if(dbAsmBadge){dbAsmBadge.textContent=asmMap[_currentAssembly]||'English Assembly';dbAsmBadge.style.background=asmColors[_currentAssembly]||'rgba(255,255,255,0.2)';}
+  const dbName=document.getElementById('dbChurchName');
+  if(dbName){const suffix=_currentAssembly==='akan'?' — Akan':_currentAssembly==='all'?' — All':' — English';dbName.textContent=(DB.cfg.name||'Ebenezer Worship Centre')+suffix;}
 
   // ── Computed values ──
   const active=m.filter(x=>x.st==='active').length;
@@ -2436,18 +2645,20 @@ function renderMembers(){
     if(q&&!(x.fn+' '+x.ln+x.ph+(x.oc||'')+(x.adr||'')+(x.rank||'')).toLowerCase().includes(q))return false;
     return true;
   });
-  document.getElementById('mCount').textContent=list.length+' record'+(list.length===1?'':'s');
+  const cEl=document.getElementById('mCount');
+  if(cEl)cEl.textContent=list.length+' record'+(list.length===1?'':'s');
   const tbody=document.getElementById('mBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="11"><div class="empty"><strong>No members found</strong></div></td></tr>';return;}
-  const rankBadge={Member:'bact',Elder:'bc1',Deacon:'bc2',Deaconess:'bc3','Presiding Elder:':{cls:'bam'}};
+  if(!tbody)return;
+  if(!list.length){tbody.innerHTML='<tr><td colspan="11"><div class="empty"><strong>No members found</strong><br>'+(_currentAssembly==='akan'?'Click <strong>Import 56 Akan members</strong> above to load the Akan Assembly.':'Try a different filter.')+'</div></td></tr>';return;}
   tbody.innerHTML=list.map(function(m,i){
     const rk=m.rank||'Member';
     const rkCls=rk==='Elder'?'bc1':rk==='Deacon'?'bc2':rk==='Deaconess'?'bc3':rk==='Presiding Elder'?'bam':rk==='Resident Pastor'?'bam':'bact';
+    const asmBadge=m.assembly&&m.assembly!=='English'?'<span class="badge bc2" style="font-size:8px;margin-left:3px">'+m.assembly+'</span>':'';
     return '<tr>'+
     '<td style="color:var(--tx3)">'+(i+1)+'</td>'+
-    '<td><div class="md"><div class="av">'+m.fn[0]+m.ln[0]+'</div><div><div style="font-weight:600;font-size:12px">'+m.fn+' '+m.ln+'</div><div style="font-size:10px;color:var(--tx3)">'+(m.oc||'—')+'</div></div></div></td>'+
+    '<td><div class="md"><div class="av">'+m.fn[0]+(m.ln[0]||'')+'</div><div><div style="font-weight:600;font-size:12px">'+m.fn+' '+m.ln+asmBadge+'</div><div style="font-size:10px;color:var(--tx3)">'+(m.oc||'—')+'</div></div></div></td>'+
     '<td>'+m.ge+'</td>'+
-    '<td>'+m.ph+'</td>'+
+    '<td>'+(m.ph||'—')+'</td>'+
     '<td><span class="badge '+rkCls+'">'+rk+'</span></td>'+
     '<td><span class="badge '+(m.cel==='Cell 1'?'bc1':m.cel==='Cell 2'?'bc2':m.cel==='Cell 3'?'bc3':m.cel==='New Convert'?'bnc':'binact')+'">'+m.cel+'</span></td>'+
     '<td>'+(m.min||'—')+'</td>'+
@@ -2456,6 +2667,32 @@ function renderMembers(){
     '<td><span class="badge '+(m.st==='active'?'bact':m.st==='transferred'?'bam':'binact')+'">'+m.st+'</span></td>'+
     '<td style="white-space:nowrap"><button class="btn btn-o btn-xs" onclick="editMember('+m.id+')">✏️</button> <button class="btn btn-r btn-xs" onclick="delMember('+m.id+')">🗑️</button></td>'+
     '</tr>';}).join('');
+  // Update assembly bar
+  updateMembersAsmBar();
+}
+
+function populateMemberFilters(){
+  const s=document.getElementById('mSearch');if(s)s.value='';
+}
+
+function updateMembersAsmBar(){
+  const bar=document.getElementById('membersAsmBar');
+  if(!bar)return;
+  const asm=_currentAssembly;
+  const allM=DB.m||[];
+  const active=allM.filter(function(x){return x.st==='active';}).length;
+  const men=allM.filter(function(x){return x.ge==='Male';}).length;
+  const women=allM.filter(function(x){return x.ge==='Female';}).length;
+  const label=asm==='akan'?'🇬🇭 Akan Assembly':asm==='english'?'🇬🇧 English Assembly':'👁 All Assemblies';
+  const color=asm==='akan'?'#2d6a4f':asm==='english'?'#1a3a6b':'#6c3483';
+  bar.style.cssText='background:'+color+'18;border:1px solid '+color+'44;border-radius:10px;padding:10px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px';
+  bar.innerHTML='<div style="font-size:12px;font-weight:700;color:'+color+'">'+label+
+    ' &nbsp;·&nbsp; <strong>'+active+'</strong> active members'+
+    ' &nbsp;·&nbsp; '+men+' men &nbsp;·&nbsp; '+women+' women'+
+    '</div><button class="btn btn-o btn-sm" onclick="switchAssembly()" style="font-size:11px">🔄 Switch assembly</button>';
+  // Show/hide Akan import banner
+  const importBanner=document.getElementById('akanImportBanner');
+  if(importBanner)importBanner.style.display=(asm==='akan'&&allM.length===0)?'flex':'none';
 }
 // ── Rank selector ──
 const RANKS=[
@@ -2519,10 +2756,12 @@ async function saveMember(){
   if(!fn||!ln){showToast('First and last name are required','error');return;}
   const keys={fn:'mFn',ln:'mLn',ge:'mGe',dob:'mDob',ph:'mPh',ph2:'mPh2',em:'mEm',oc:'mOc',emp:'mEmp',mar:'mMar',nch:'mNch',adr:'mAdr',gps:'mGps',ht:'mHt',cel:'mCel',min:'mMin',rank:'mRank',hgb:'mHgb',jd:'mJd',hj:'mHj',bap:'mBap',st:'mSt',ecn:'mEcn',ecp:'mEcp',ecr:'mEcr',nid:'mNid',nokN:'mNokN',nokP:'mNokP',nokR:'mNokR',nts:'mNts'};
   const obj={};Object.entries(keys).forEach(function(en){obj[en[0]]=(document.getElementById(en[1])||{}).value||'';});
+  // Tag member with current assembly
+  obj.assembly=_currentAssembly==='akan'?'Akan':'English';
   const eid=document.getElementById('eid').value;
   let result;
   if(eid){result=await put('members/'+eid,obj);if(result&&result.success)showToast('Member updated ✅');}
-  else{result=await post('members',obj);if(result&&result.success)showToast('Member added ✅');}
+  else{result=await post('members',obj);if(result&&result.success)showToast('Member added for '+obj.assembly+' Assembly ✅');}
   if(!result){showToast('Save failed — check server','error');return;}
   closeM('mMember');
   await loadAll();renderMembers();
@@ -5626,4 +5865,44 @@ function manageSavedAccountsDetailed(){
 
 </body>
 </html>
+
+<!-- ===== ASSEMBLY SELECTION SCREEN ===== -->
+<div id="asmSelectWrap" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#0d1f3c,#1a3a6b,#2d6a4f);z-index:8000;flex-direction:column;align-items:center;justify-content:center;padding:20px">
+  <img src="https://image.pngaaa.com/448/4569448-middle.png" style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.4);background:#fff;padding:4px;margin-bottom:20px;object-fit:contain" onerror="this.style.display=none">
+  <div style="color:#fff;font-size:22px;font-weight:700;margin-bottom:6px;text-align:center">Ebenezer Worship Centre — Taifa</div>
+  <div style="color:rgba(255,255,255,0.75);font-size:13px;margin-bottom:40px;text-align:center">The Church of Pentecost · Taifa District · Greater Accra</div>
+  <div style="color:rgba(255,255,255,0.9);font-size:14px;font-weight:600;margin-bottom:20px;letter-spacing:1px;text-transform:uppercase">Select your assembly to continue</div>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center">
+
+    <!-- English Assembly -->
+    <button onclick="enterAssembly('english')" style="background:#fff;border:none;border-radius:16px;padding:28px 36px;cursor:pointer;width:220px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+      <div style="font-size:44px;margin-bottom:12px">🇬🇧</div>
+      <div style="font-size:17px;font-weight:700;color:#1a3a6b;margin-bottom:6px">English Assembly</div>
+      <div style="font-size:11px;color:#666;line-height:1.6">English language services<br>and all English programmes</div>
+      <div id="engMemberCount" style="margin-top:12px;background:#e8f0fe;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:#1a3a6b">Loading...</div>
+    </button>
+
+    <!-- Akan Assembly -->
+    <button onclick="enterAssembly('akan')" style="background:#fff;border:none;border-radius:16px;padding:28px 36px;cursor:pointer;width:220px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+      <div style="font-size:44px;margin-bottom:12px">🇬🇭</div>
+      <div style="font-size:17px;font-weight:700;color:#2d6a4f;margin-bottom:6px">Akan Assembly</div>
+      <div style="font-size:11px;color:#666;line-height:1.6">Akan language services<br>and all Akan programmes</div>
+      <div id="aknMemberCount" style="margin-top:12px;background:#e8f5e9;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:#2d6a4f">Loading...</div>
+    </button>
+  </div>
+
+  <div style="margin-top:36px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center">
+    <button onclick="enterAssembly('all')" style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.4);color:#fff;border-radius:10px;padding:10px 28px;cursor:pointer;font-size:13px;font-weight:600">
+      👁 View all assemblies combined
+    </button>
+    <button onclick="signOut()" style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:12px;padding:10px">
+      Sign out
+    </button>
+  </div>
+  <div style="position:absolute;bottom:20px;color:rgba(255,255,255,0.4);font-size:11px;text-align:center">
+    Signed in as <strong id="asmUserName" style="color:rgba(255,255,255,0.7)"></strong>
+    &nbsp;·&nbsp; EWC CMS
+  </div>
+</div>
+
 

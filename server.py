@@ -64,6 +64,7 @@ def db_init():
         nokR TEXT DEFAULT '', nts TEXT DEFAULT '',
         photo TEXT DEFAULT '',
         registration_source TEXT DEFAULT 'admin',
+        assembly TEXT DEFAULT 'English',
         created TEXT DEFAULT (datetime('now')),
         updated TEXT DEFAULT (datetime('now'))
     );
@@ -289,6 +290,7 @@ def db_init():
 
         # members — extra fields added over time
         "ALTER TABLE members ADD COLUMN registration_source TEXT DEFAULT 'admin'",
+        "ALTER TABLE members ADD COLUMN assembly TEXT DEFAULT 'English'",
         "ALTER TABLE members ADD COLUMN photo TEXT DEFAULT ''",
         "ALTER TABLE members ADD COLUMN updated TEXT DEFAULT (datetime('now'))",
         "ALTER TABLE members ADD COLUMN ph2 TEXT DEFAULT ''",
@@ -557,11 +559,30 @@ class EWCHandler(BaseHTTPRequestHandler):
         if not user:
             return self.send_err(401, "Unauthorised — please log in")
 
-        # /api/dashboard
+        # /api/dashboard  — supports ?assembly=English|Akan|all
         if path == "/api/dashboard":
+            from urllib.parse import urlparse, parse_qs as _pqs
+            qs = _pqs(urlparse(self.path).query)
+            asm = qs.get("assembly",["all"])[0]
             c = db_conn()
-            mem  = c.execute("SELECT COUNT(*) FROM members WHERE st='active'").fetchone()[0]
-            inc  = c.execute("SELECT COALESCE(SUM(amt),0) FROM tithes").fetchone()[0]
+            if asm == "all":
+                mem  = c.execute("SELECT COUNT(*) FROM members WHERE st='active'").fetchone()[0]
+                inc  = c.execute("SELECT COALESCE(SUM(amt),0) FROM tithes").fetchone()[0]
+                inc_eng = c.execute("SELECT COALESCE(SUM(amt),0) FROM tithes WHERE assembly='English' OR assembly IS NULL OR assembly=''").fetchone()[0]
+                inc_akn = c.execute("SELECT COALESCE(SUM(amt),0) FROM tithes WHERE assembly='Akan'").fetchone()[0]
+                mem_eng = c.execute("SELECT COUNT(*) FROM members WHERE st='active' AND (assembly='English' OR assembly IS NULL OR assembly='')").fetchone()[0]
+                mem_akn = c.execute("SELECT COUNT(*) FROM members WHERE st='active' AND assembly='Akan'").fetchone()[0]
+            else:
+                if asm == "English":
+                    mem_cond = "st='active' AND (assembly='English' OR assembly IS NULL OR assembly='')"
+                    inc_cond = "assembly='English' OR assembly IS NULL OR assembly=''"
+                else:
+                    mem_cond = f"st='active' AND assembly='{asm}'"
+                    inc_cond = f"assembly='{asm}'"
+                mem  = c.execute(f"SELECT COUNT(*) FROM members WHERE {mem_cond}").fetchone()[0]
+                inc  = c.execute(f"SELECT COALESCE(SUM(amt),0) FROM tithes WHERE {inc_cond}").fetchone()[0]
+                inc_eng = inc_akn = 0
+                mem_eng = mem_akn = 0
             exp  = c.execute("SELECT COALESCE(SUM(amt),0) FROM expenses").fetchone()[0]
             souls= c.execute("SELECT COALESCE(SUM(souls+outSouls+minSouls+cellSouls),0) FROM weekly_records").fetchone()[0]
             hgb  = c.execute("SELECT COUNT(*) FROM holy_ghost_baptisms").fetchone()[0]
@@ -574,7 +595,9 @@ class EWCHandler(BaseHTTPRequestHandler):
             return self.send_ok({
                 "members":mem, "income":float(inc), "expenses":float(exp),
                 "balance":float(inc)-float(exp), "souls":int(souls or 0),
-                "hgb":int(hgb), "pending":int(pend), "birthdays":int(bday)
+                "hgb":int(hgb), "pending":int(pend), "birthdays":int(bday),
+                "income_english":float(inc_eng), "income_akan":float(inc_akn),
+                "members_english":int(mem_eng), "members_akan":int(mem_akn)
             })
 
         # /api/config
@@ -749,6 +772,31 @@ class EWCHandler(BaseHTTPRequestHandler):
                           [att_id,mid,status])
             c.commit(); c.close()
             return self.send_ok({"success":True,"id":att_id})
+
+        # Bulk member import
+        if path == "/api/import-members":
+            rows = data if isinstance(data, list) else data.get("members", [])
+            imported = 0
+            skipped = 0
+            for row in rows:
+                row.pop("id", None)
+                # Skip exact duplicates by phone+assembly
+                ph = row.get("ph","").strip()
+                asm = row.get("assembly","English")
+                fn = row.get("fn","").strip()
+                ln = row.get("ln","").strip()
+                conn2 = db_conn()
+                exists = conn2.execute(
+                    "SELECT id FROM members WHERE fn=? AND ln=? AND assembly=?",
+                    [fn, ln, asm]
+                ).fetchone()
+                conn2.close()
+                if exists:
+                    skipped += 1
+                    continue
+                db_insert("members", row)
+                imported += 1
+            return self.send_ok({"success": True, "imported": imported, "skipped": skipped})
 
         # Weekly records — upsert on duplicate date
         if path == "/api/weekly_records":
