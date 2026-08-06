@@ -7,10 +7,23 @@
 ║                                                              ║
 ║  Zero external dependencies — Pure Python 3 stdlib only     ║
 ║  Works on:  Railway · Render · VPS · localhost              ║
+║                                                              ║
+║  SECURITY / RELIABILITY FIXES APPLIED:                      ║
+║   - SQL injection in /api/dashboard fixed (parameterized)   ║
+║   - SQL injection via arbitrary column names in generic     ║
+║     insert/update fixed (schema-validated whitelist)        ║
+║   - Path traversal in static file serving fixed             ║
+║   - All requests wrapped in error handling — a bad request  ║
+║     returns a clean JSON error instead of crashing the      ║
+║     server                                                   ║
+║   - Server now handles concurrent requests (threaded)       ║
+║   - Bulk member import restricted to known member columns   ║
+║   - Native HTTPS/TLS support added (optional cert/key)      ║
 ╚══════════════════════════════════════════════════════════════╝
 """
-import os, sys, json, sqlite3, hashlib, hmac, base64, uuid, re, time
+import os, sys, json, sqlite3, hashlib, hmac, base64, uuid, re, time, ssl
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 from datetime import datetime
@@ -19,6 +32,24 @@ from datetime import datetime
 PORT       = int(os.environ.get("PORT", 3000))
 HOST       = "0.0.0.0"
 SECRET_KEY = os.environ.get("EWC_SECRET", "EWC_TAIFA_COP_2024_CHANGE_THIS_IN_PRODUCTION")
+
+# ── HTTPS / TLS ─────────────────────────────────────────────────────
+# If you're on Railway / Render / most PaaS providers, TLS is already
+# terminated for you at their edge — you don't need to set these, just
+# use the https:// URL they give you and this server can stay on plain
+# HTTP behind it.
+#
+# If you're on a bare VPS (or want the Python process itself to speak
+# HTTPS), set these two environment variables to the paths of your
+# certificate and private key (e.g. from Let's Encrypt / certbot):
+#
+#   SSL_CERT_FILE=/etc/letsencrypt/live/yourdomain/fullchain.pem
+#   SSL_KEY_FILE=/etc/letsencrypt/live/yourdomain/privkey.pem
+#
+# When both are set, the server will listen for HTTPS directly.
+SSL_CERT = os.environ.get("SSL_CERT_FILE", "").strip()
+SSL_KEY  = os.environ.get("SSL_KEY_FILE", "").strip()
+
 # Data dir: /data for Railway/Render (persistent volume), else current dir
 _DATA_DIR  = Path("/data") if Path("/data").exists() else Path(__file__).parent
 DB_PATH    = str(_DATA_DIR / "ewc_database.db")
@@ -26,7 +57,7 @@ STATIC_DIR = Path(__file__).parent.resolve()
 
 # ─── DATABASE ─────────────────────────────────────────────────────────
 def db_conn():
-    c = sqlite3.connect(DB_PATH, check_same_thread=False)
+    c = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=15)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA foreign_keys=ON")
@@ -432,6 +463,32 @@ ALLOWED_TABLES = {
     "equipment", "maintenance"
 }
 
+# Columns allowed for bulk member import (whitelist — never trust
+# arbitrary keys from an uploaded file/JSON body as SQL column names)
+MEMBER_IMPORT_FIELDS = {
+    "fn","ln","ge","dob","ph","ph2","em","oc","emp","mar","nch","adr",
+    "gps","ht","cel","min","rank","hgb","jd","hj","bap","st","ecn","ecp",
+    "ecr","nid","nokN","nokP","nokR","nts","photo","registration_source",
+    "assembly"
+}
+
+_table_cols_cache = {}
+
+def _table_columns(table):
+    """Return the real set of column names for a table, straight from
+    SQLite's own schema. Used to whitelist any dict of incoming data
+    before it's used to build an INSERT/UPDATE statement, so a request
+    body can never inject arbitrary column/SQL via its JSON keys."""
+    if table in _table_cols_cache:
+        return _table_cols_cache[table]
+    if table not in ALLOWED_TABLES:
+        return set()
+    c = db_conn()
+    cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})").fetchall()}
+    c.close()
+    _table_cols_cache[table] = cols
+    return cols
+
 def db_all(table, order="id DESC"):
     c = db_conn()
     rows = [dict(r) for r in c.execute(f"SELECT * FROM {table} ORDER BY {order}").fetchall()]
@@ -439,7 +496,10 @@ def db_all(table, order="id DESC"):
     return rows
 
 def db_insert(table, data):
-    data = {k: v for k, v in data.items() if k != "id"}
+    valid = _table_columns(table)
+    data = {k: v for k, v in data.items() if k != "id" and k in valid}
+    if table == "users" and "password" in data:
+        data["password"] = _hash_pw(data["password"])
     if not data:
         return None
     cols = list(data.keys())
@@ -453,7 +513,8 @@ def db_insert(table, data):
     return rid
 
 def db_update(table, rid, data):
-    data = {k: v for k, v in data.items() if k != "id"}
+    valid = _table_columns(table)
+    data = {k: v for k, v in data.items() if k != "id" and k in valid}
     # Hash password if updating users table
     if table == "users" and "password" in data:
         data["password"] = _hash_pw(data["password"])
@@ -501,21 +562,40 @@ class EWCHandler(BaseHTTPRequestHandler):
         self.send_json(200, data if data is not None else {"success": True})
 
     def send_err(self, code, msg):
-        self.send_json(code, {"error": msg})
+        self.send_json(code, {"error": str(msg)})
 
     def read_body(self):
-        n = int(self.headers.get("Content-Length", 0))
-        return json.loads(self.rfile.read(n)) if n else {}
+        n = int(self.headers.get("Content-Length", 0) or 0)
+        if not n:
+            return {}
+        raw = self.rfile.read(n)
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON in request body")
 
     def get_user(self):
         tok = self.headers.get("Authorization", "").replace("Bearer ", "").strip()
         return _verify_token(tok) if tok else None
 
     def serve_file(self, name):
-        p = STATIC_DIR / name
-        if not p.exists():
+        # ── Path traversal protection ──────────────────────────────
+        # Resolve the requested path and make sure it's still inside
+        # STATIC_DIR before ever touching the filesystem. Rejects
+        # things like "../../etc/passwd" or absolute paths.
+        name = (name or "").split("?")[0].lstrip("/")
+        if not name:
+            name = "EbenezerWC_CMS.html"
+        try:
+            candidate = (STATIC_DIR / name).resolve()
+            candidate.relative_to(STATIC_DIR)
+        except (ValueError, OSError):
+            return self.send_err(403, "Forbidden")
+
+        if not candidate.exists() or not candidate.is_file():
             self.send_err(404, f"File not found: {name}")
             return
+
         ext_map = {
             ".html": "text/html; charset=utf-8",
             ".js":   "application/javascript",
@@ -526,8 +606,8 @@ class EWCHandler(BaseHTTPRequestHandler):
             ".ico":  "image/x-icon",
             ".txt":  "text/plain"
         }
-        ct = ext_map.get(p.suffix, "application/octet-stream")
-        data = p.read_bytes()
+        ct = ext_map.get(candidate.suffix, "application/octet-stream")
+        data = candidate.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", ct)
         self.send_header("Content-Length", str(len(data)))
@@ -542,8 +622,54 @@ class EWCHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    # ── GET ──────────────────────────────────────────────────────────
+    # ── Top-level dispatchers: catch ANY exception so a single bad   ──
+    # ── request (malformed JSON, unexpected value, DB hiccup, etc.)  ──
+    # ── returns a clean JSON error instead of crashing the request   ──
+    # ── thread or hanging the connection.                            ──
     def do_GET(self):
+        try:
+            self._do_GET()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as e:
+            self._safe_err(500, f"Internal server error: {e}")
+
+    def do_POST(self):
+        try:
+            self._do_POST()
+        except ValueError as e:
+            self._safe_err(400, str(e))
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as e:
+            self._safe_err(500, f"Internal server error: {e}")
+
+    def do_PUT(self):
+        try:
+            self._do_PUT()
+        except ValueError as e:
+            self._safe_err(400, str(e))
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as e:
+            self._safe_err(500, f"Internal server error: {e}")
+
+    def do_DELETE(self):
+        try:
+            self._do_DELETE()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as e:
+            self._safe_err(500, f"Internal server error: {e}")
+
+    def _safe_err(self, code, msg):
+        try:
+            self.send_err(code, msg)
+        except Exception:
+            pass  # headers may already be partially sent; nothing more we can do
+
+    # ── GET ──────────────────────────────────────────────────────────
+    def _do_GET(self):
         path = urlparse(self.path).path.rstrip("/") or "/"
 
         # Static files
@@ -561,9 +687,8 @@ class EWCHandler(BaseHTTPRequestHandler):
 
         # /api/dashboard  — supports ?assembly=English|Akan|all
         if path == "/api/dashboard":
-            from urllib.parse import urlparse, parse_qs as _pqs
-            qs = _pqs(urlparse(self.path).query)
-            asm = qs.get("assembly",["all"])[0]
+            qs = parse_qs(urlparse(self.path).query)
+            asm = qs.get("assembly", ["all"])[0]
             c = db_conn()
             if asm == "all":
                 mem  = c.execute("SELECT COUNT(*) FROM members WHERE st='active'").fetchone()[0]
@@ -572,15 +697,23 @@ class EWCHandler(BaseHTTPRequestHandler):
                 inc_akn = c.execute("SELECT COALESCE(SUM(amt),0) FROM tithes WHERE assembly='Akan'").fetchone()[0]
                 mem_eng = c.execute("SELECT COUNT(*) FROM members WHERE st='active' AND (assembly='English' OR assembly IS NULL OR assembly='')").fetchone()[0]
                 mem_akn = c.execute("SELECT COUNT(*) FROM members WHERE st='active' AND assembly='Akan'").fetchone()[0]
+            elif asm == "English":
+                # Parameterized — no more f-string SQL injection here.
+                mem  = c.execute(
+                    "SELECT COUNT(*) FROM members WHERE st='active' AND (assembly='English' OR assembly IS NULL OR assembly='')"
+                ).fetchone()[0]
+                inc  = c.execute(
+                    "SELECT COALESCE(SUM(amt),0) FROM tithes WHERE (assembly='English' OR assembly IS NULL OR assembly='')"
+                ).fetchone()[0]
+                inc_eng = inc_akn = 0
+                mem_eng = mem_akn = 0
             else:
-                if asm == "English":
-                    mem_cond = "st='active' AND (assembly='English' OR assembly IS NULL OR assembly='')"
-                    inc_cond = "assembly='English' OR assembly IS NULL OR assembly=''"
-                else:
-                    mem_cond = f"st='active' AND assembly='{asm}'"
-                    inc_cond = f"assembly='{asm}'"
-                mem  = c.execute(f"SELECT COUNT(*) FROM members WHERE {mem_cond}").fetchone()[0]
-                inc  = c.execute(f"SELECT COALESCE(SUM(amt),0) FROM tithes WHERE {inc_cond}").fetchone()[0]
+                mem  = c.execute(
+                    "SELECT COUNT(*) FROM members WHERE st='active' AND assembly=?", [asm]
+                ).fetchone()[0]
+                inc  = c.execute(
+                    "SELECT COALESCE(SUM(amt),0) FROM tithes WHERE assembly=?", [asm]
+                ).fetchone()[0]
                 inc_eng = inc_akn = 0
                 mem_eng = mem_akn = 0
             exp  = c.execute("SELECT COALESCE(SUM(amt),0) FROM expenses").fetchone()[0]
@@ -641,7 +774,7 @@ class EWCHandler(BaseHTTPRequestHandler):
         self.send_err(404, "Not found")
 
     # ── POST ─────────────────────────────────────────────────────────
-    def do_POST(self):
+    def _do_POST(self):
         path = urlparse(self.path).path.rstrip("/")
         data = self.read_body()
 
@@ -678,7 +811,7 @@ class EWCHandler(BaseHTTPRequestHandler):
                 return self.send_err(403, "Invalid admin registration key")
             rid = db_insert("users", {
                 "fn":fn,"ln":ln,"username":uname,
-                "password":_hash_pw(pw),
+                "password":pw,
                 "role":data.get("role","user"),
                 "ph":data.get("ph",""),"em":data.get("em","")
             })
@@ -773,18 +906,23 @@ class EWCHandler(BaseHTTPRequestHandler):
             c.commit(); c.close()
             return self.send_ok({"success":True,"id":att_id})
 
-        # Bulk member import
+        # Bulk member import — column names are whitelisted against
+        # MEMBER_IMPORT_FIELDS (and again against the real schema
+        # inside db_insert) so an uploaded file can never smuggle in
+        # arbitrary SQL via its column/key names.
         if path == "/api/import-members":
             rows = data if isinstance(data, list) else data.get("members", [])
             imported = 0
             skipped = 0
             for row in rows:
-                row.pop("id", None)
-                # Skip exact duplicates by phone+assembly
-                ph = row.get("ph","").strip()
+                if not isinstance(row, dict):
+                    skipped += 1
+                    continue
+                row = {k: v for k, v in row.items() if k in MEMBER_IMPORT_FIELDS}
+                ph  = str(row.get("ph","")).strip()
                 asm = row.get("assembly","English")
-                fn = row.get("fn","").strip()
-                ln = row.get("ln","").strip()
+                fn  = str(row.get("fn","")).strip()
+                ln  = str(row.get("ln","")).strip()
                 conn2 = db_conn()
                 exists = conn2.execute(
                     "SELECT id FROM members WHERE fn=? AND ln=? AND assembly=?",
@@ -822,7 +960,7 @@ class EWCHandler(BaseHTTPRequestHandler):
         self.send_err(404, "Not found")
 
     # ── PUT ──────────────────────────────────────────────────────────
-    def do_PUT(self):
+    def _do_PUT(self):
         path = urlparse(self.path).path.rstrip("/")
         user = self.get_user()
         if not user:
@@ -847,7 +985,7 @@ class EWCHandler(BaseHTTPRequestHandler):
         self.send_err(404, "Not found")
 
     # ── DELETE ───────────────────────────────────────────────────────
-    def do_DELETE(self):
+    def _do_DELETE(self):
         path = urlparse(self.path).path.rstrip("/")
         user = self.get_user()
         if not user:
@@ -861,6 +999,17 @@ class EWCHandler(BaseHTTPRequestHandler):
         self.send_err(404, "Not found")
 
 
+# ─── THREADED SERVER ────────────────────────────────────────────────
+# Plain http.server.HTTPServer handles one request at a time. Under
+# any real concurrency (a few phones hitting the dashboard together,
+# a slow client, a long import) later requests just stall. This mixes
+# in threading so each connection gets its own thread; SQLite
+# connections are opened per-call in db_conn(), so this is safe.
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 # ─── ENTRY POINT ──────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("""
@@ -872,14 +1021,44 @@ if __name__ == "__main__":
     print(f"\n  📂 Database: {DB_PATH}")
     db_init()
 
-    server = HTTPServer((HOST, PORT), EWCHandler)
+    server = ThreadingHTTPServer((HOST, PORT), EWCHandler)
+
+    scheme = "http"
+    if SSL_CERT and SSL_KEY:
+        if not Path(SSL_CERT).exists() or not Path(SSL_KEY).exists():
+            print(f"\n  ⚠️  SSL_CERT_FILE or SSL_KEY_FILE path does not exist — "
+                  f"falling back to plain HTTP.\n"
+                  f"     SSL_CERT_FILE={SSL_CERT}\n"
+                  f"     SSL_KEY_FILE={SSL_KEY}\n")
+        else:
+            try:
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ctx.load_cert_chain(certfile=SSL_CERT, keyfile=SSL_KEY)
+                # Reasonable modern defaults
+                ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+                server.socket = ctx.wrap_socket(server.socket, server_side=True)
+                scheme = "https"
+            except Exception as e:
+                print(f"\n  ⚠️  Failed to load SSL cert/key ({e}) — falling back to plain HTTP.\n")
+
     print(f"""
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  📱  Local:   http://localhost:{PORT}
-  🌐  Network: http://0.0.0.0:{PORT}
+  📱  Local:   {scheme}://localhost:{PORT}
+  🌐  Network: {scheme}://0.0.0.0:{PORT}
   🔑  Login:   admin / admin123
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✅  Server running — press Ctrl+C to stop
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━""")
+    if scheme == "http":
+        print("""  ℹ️   Running over plain HTTP.
+      • On Railway / Render / most PaaS hosts: this is fine — their
+        edge proxy already terminates HTTPS for you, so the public
+        URL they give you is already https:// even though this
+        process itself speaks HTTP.
+      • On a bare VPS and want THIS process to speak HTTPS directly:
+        set environment variables SSL_CERT_FILE and SSL_KEY_FILE to
+        point at a certificate/key pair (e.g. from Let's Encrypt),
+        then restart.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━""")
+    print("""  ✅  Server running (multi-threaded) — press Ctrl+C to stop
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """)
     try:
