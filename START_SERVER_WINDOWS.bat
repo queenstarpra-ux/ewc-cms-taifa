@@ -12,17 +12,17 @@ if %errorlevel%==0 (set PY=python) else (
   python3 --version >nul 2>&1
   if %errorlevel%==0 (set PY=python3) else (
     echo  ERROR: Python 3 is not installed.
-    echo  Download free from: https://www.python.org/downloads/
-    echo  IMPORTANT: Check "Add Python to PATH" during install!
+    echo  Download FREE from: https://www.python.org/downloads/
+    echo  IMPORTANT: Tick "Add Python to PATH" during install!
     echo.
     pause & exit /b 1
   )
 )
 echo  Python found!
 echo.
-echo  Open your browser and go to:   http://localhost:3000
+echo  Open your browser at:    http://127.0.0.1:3000
 echo  Username: admin    Password: admin123
-echo  (Change password after first login)
+echo  Change password after first login!
 echo.
 echo  Press Ctrl+C to stop the server
 echo  ============================================================

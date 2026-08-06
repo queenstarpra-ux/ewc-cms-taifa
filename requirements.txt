@@ -1,2 +1,2 @@
-# Zero external dependencies — pure Python 3 stdlib only
-# Works on Railway, Render, VPS, localhost
+# No external dependencies — pure Python 3 standard library only
+# Works on Railway, Render, any VPS, or your local computer

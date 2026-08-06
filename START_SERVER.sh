@@ -21,9 +21,8 @@ if [ -z "$PY" ]; then
 fi
 echo " Python 3 found: $($PY --version)"
 echo ""
-echo " Open browser:  http://localhost:3000"
-echo " Username:      admin"
-echo " Password:      admin123"
+echo " Open browser: http://127.0.0.1:3000"
+echo " Username: admin   Password: admin123"
 echo " Press Ctrl+C to stop"
 echo " ============================================================"
 echo ""
