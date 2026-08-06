@@ -286,6 +286,34 @@ def db_init():
         submitted TEXT DEFAULT (datetime('now')),
         reviewed TEXT DEFAULT '', reviewed_by TEXT DEFAULT ''
     );
+    CREATE TABLE IF NOT EXISTS water_baptisms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT DEFAULT '', memId INTEGER DEFAULT 0,
+        convertId INTEGER DEFAULT 0,
+        fn TEXT DEFAULT '', ln TEXT DEFAULT '',
+        ge TEXT DEFAULT '', age INTEGER DEFAULT 0,
+        ph TEXT DEFAULT '', svc TEXT DEFAULT '',
+        minister TEXT DEFAULT '', venue TEXT DEFAULT '',
+        assembly TEXT DEFAULT 'English',
+        nts TEXT DEFAULT '',
+        created TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS backsliders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        memId INTEGER DEFAULT 0,
+        fn TEXT DEFAULT '', ln TEXT DEFAULT '',
+        ge TEXT DEFAULT '', ph TEXT DEFAULT '',
+        adr TEXT DEFAULT '',
+        dateLeft TEXT DEFAULT '', reason TEXT DEFAULT '',
+        lastSeen TEXT DEFAULT '',
+        follower TEXT DEFAULT '', cell TEXT DEFAULT '',
+        status TEXT DEFAULT 'Being Followed',
+        dateWon TEXT DEFAULT '',
+        assembly TEXT DEFAULT 'English',
+        nts TEXT DEFAULT '',
+        created TEXT DEFAULT (datetime('now')),
+        updated TEXT DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS church_config (
         key TEXT PRIMARY KEY, value TEXT DEFAULT ''
     );
@@ -460,7 +488,8 @@ ALLOWED_TABLES = {
     "events", "prayer_requests", "weekly_records", "transfers",
     "outreach", "ministry_meetings", "holy_ghost_baptisms",
     "special_events", "scholarships", "users",
-    "equipment", "maintenance"
+    "equipment", "maintenance",
+    "water_baptisms", "backsliders"
 }
 
 # Columns allowed for bulk member import (whitelist — never trust
@@ -724,13 +753,29 @@ class EWCHandler(BaseHTTPRequestHandler):
                 strftime('%m-%d',dob) BETWEEN
                 strftime('%m-%d','now') AND
                 strftime('%m-%d','now','+7 days')""").fetchone()[0]
+
+            # ── New metrics: baptisms, souls won, backsliders ─────────
+            baptisms       = c.execute("SELECT COUNT(*) FROM water_baptisms").fetchone()[0]
+            souls_won      = c.execute("SELECT COUNT(*) FROM converts").fetchone()[0]
+            backsliders_following = c.execute(
+                "SELECT COUNT(*) FROM backsliders WHERE status='Being Followed'"
+            ).fetchone()[0]
+            backsliders_won = c.execute(
+                "SELECT COUNT(*) FROM backsliders WHERE status='Won Back'"
+            ).fetchone()[0]
+            backsliders_total = c.execute("SELECT COUNT(*) FROM backsliders").fetchone()[0]
+
             c.close()
             return self.send_ok({
                 "members":mem, "income":float(inc), "expenses":float(exp),
                 "balance":float(inc)-float(exp), "souls":int(souls or 0),
                 "hgb":int(hgb), "pending":int(pend), "birthdays":int(bday),
                 "income_english":float(inc_eng), "income_akan":float(inc_akn),
-                "members_english":int(mem_eng), "members_akan":int(mem_akn)
+                "members_english":int(mem_eng), "members_akan":int(mem_akn),
+                "baptisms":int(baptisms), "souls_won":int(souls_won),
+                "backsliders_following":int(backsliders_following),
+                "backsliders_won":int(backsliders_won),
+                "backsliders_total":int(backsliders_total)
             })
 
         # /api/config
@@ -767,7 +812,8 @@ class EWCHandler(BaseHTTPRequestHandler):
         if seg in ALLOWED_TABLES:
             order_map = {
                 "tithes":"dt DESC","expenses":"dt DESC",
-                "weekly_records":"date DESC","outreach":"date DESC","transfers":"date DESC"
+                "weekly_records":"date DESC","outreach":"date DESC","transfers":"date DESC",
+                "water_baptisms":"date DESC","backsliders":"dateLeft DESC"
             }
             return self.send_ok(db_all(seg, order_map.get(seg, "id DESC")))
 
